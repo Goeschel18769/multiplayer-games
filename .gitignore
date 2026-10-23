@@ -1,0 +1,14 @@
+node_modules/
+.wrangler/
+/release/
+.DS_Store
+.env
+.env.*
+.dev.vars
+.dev.vars.*
+
+# Öffentliche Vorlagen ohne Zugangsdaten dürfen versioniert werden.
+!.env.example
+!.env.*.example
+!.dev.vars.example
+!.dev.vars.*.example
