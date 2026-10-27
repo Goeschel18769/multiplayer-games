@@ -1,6 +1,8 @@
 node_modules/
 .wrangler/
 /release/
+# Lokale Kopie des Diagnoseclients; Quellen unter tests/manual/client/ versionieren.
+/tests/manual/client.zip
 .DS_Store
 .env
 .env.*

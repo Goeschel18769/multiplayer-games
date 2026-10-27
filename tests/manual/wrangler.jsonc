@@ -1,0 +1,17 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "multiplayer-games-manual",
+  "main": "worker.js",
+  "compatibility_date": "2026-10-23",
+  "dev": { "ip": "127.0.0.1", "port": 8788, "local_protocol": "http" },
+  "durable_objects": {
+    "bindings": [
+      { "name": "GAME_ROOMS", "class_name": "GameRoom" },
+      { "name": "GLOBAL_STATS", "class_name": "GlobalStats" }
+    ]
+  },
+  "exports": {
+    "GameRoom": { "type": "durable-object", "storage": "sqlite" },
+    "GlobalStats": { "type": "durable-object", "storage": "sqlite" }
+  }
+}

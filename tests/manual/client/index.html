@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Multiplayer – lokale Diagnose</title>
+  <link rel="stylesheet" href="./style.css">
+  <script src="./app.js" defer></script>
+</head>
+<body>
+  <header>
+    <h1>Multiplayer · lokale Diagnose</h1>
+    <p>Phase 6 · Diagnose für Tic Tac Toe und lokale Fixture-Tests. Jedes Fenster hält seinen eigenen Zustand nur im Arbeitsspeicher.</p>
+  </header>
+  <main>
+    <section aria-labelledby="connection-heading">
+      <h2 id="connection-heading">1. Backend und Raum</h2>
+      <div class="fields">
+        <label>Backend-Adresse <input id="backend" type="url" value="http://127.0.0.1:8787" list="backend-options" spellcheck="false"></label>
+        <label>Spielername <input id="name" value="Joël" autocomplete="off"></label>
+        <label>Raumcode <input id="code" value="JOEL-BEN" autocomplete="off" spellcheck="false"></label>
+        <label>Spiel auswählen <select id="game"><option value="">Zuerst Spieleliste laden</option></select></label>
+      </div>
+      <datalist id="backend-options">
+        <option value="http://127.0.0.1:8787">Lokales Tic Tac Toe</option>
+        <option value="http://127.0.0.1:8788">Lokale Fixture</option>
+        <option value="https://multiplayer-games.haldimann-joel.workers.dev">Produktionsadresse</option>
+      </datalist>
+      <p class="hint">Lokal: Port 8787 für Tic Tac Toe, Port 8788 für die Fixture. Produktionsadresse: https://multiplayer-games.haldimann-joel.workers.dev (wird durch diese Phase nicht deployt).</p>
+      <div class="buttons">
+        <button id="load-games">Spieleliste laden</button>
+        <button id="create" disabled>Raum erstellen (ohne Beitritt)</button>
+        <button id="join">Raum beitreten / erneut verbinden</button>
+        <button id="disconnect" disabled>Verbindung trennen</button>
+      </div>
+      <p id="creation">Noch kein Raum in diesem Fenster erstellt. Beitritt und Raumerstellung sind getrennte Aktionen.</p>
+      <p id="notice" role="status" aria-live="polite">Bereit für einen lokalen Test.</p>
+      <p id="connection-status">Verbindung: getrennt · Close-Code: –</p>
+      <label class="checkbox"><input id="heartbeat" type="checkbox" checked> Heartbeat senden</label>
+      <p id="heartbeat-status">Heartbeat startet erst nach einem gültigen Welcome.</p>
+      <p class="hint">Auch bei ausgeschaltetem Heartbeat halten andere gültige Nachrichten die Verbindung am Leben. Keine automatische Wiederverbindung.</p>
+    </section>
+    <section aria-labelledby="actions-heading">
+      <h2 id="actions-heading">2. Protokoll und Spielbedienung</h2>
+      <div class="buttons">
+        <button id="ready" disabled>Bereit</button>
+        <button id="not-ready" disabled>Nicht bereit</button>
+        <button id="start" disabled>Erste Partie starten</button>
+        <button id="rematch" disabled>Rematch zustimmen</button>
+        <button id="abort" disabled>Partie abbrechen</button>
+      </div>
+      <div id="fixture-actions" class="buttons" hidden>
+        <button id="step" disabled>Fixture-Testaktion: step</button>
+        <button id="win" disabled>Fixture-Testaktion: Sieg (win)</button>
+        <button id="draw" disabled>Fixture-Testaktion: Unentschieden (draw)</button>
+        <button id="invalid" disabled>Fixture-Testaktion: invalid</button>
+      </div>
+      <div id="tic-tac-toe" hidden>
+        <h3>Tic Tac Toe · 3 × 3</h3>
+        <p id="ttt-symbols">Noch keine Symbolzuordnung.</p>
+        <p id="ttt-status" role="status" aria-live="polite">Noch keine Partie gestartet.</p>
+        <div id="ttt-board" class="ttt-board" role="group" aria-label="Tic Tac Toe, Felder 0 bis 8 zeilenweise">
+          <button id="cell-0" class="ttt-cell" type="button" aria-label="Feld 0, leer" disabled>–</button>
+          <button id="cell-1" class="ttt-cell" type="button" aria-label="Feld 1, leer" disabled>–</button>
+          <button id="cell-2" class="ttt-cell" type="button" aria-label="Feld 2, leer" disabled>–</button>
+          <button id="cell-3" class="ttt-cell" type="button" aria-label="Feld 3, leer" disabled>–</button>
+          <button id="cell-4" class="ttt-cell" type="button" aria-label="Feld 4, leer" disabled>–</button>
+          <button id="cell-5" class="ttt-cell" type="button" aria-label="Feld 5, leer" disabled>–</button>
+          <button id="cell-6" class="ttt-cell" type="button" aria-label="Feld 6, leer" disabled>–</button>
+          <button id="cell-7" class="ttt-cell" type="button" aria-label="Feld 7, leer" disabled>–</button>
+          <button id="cell-8" class="ttt-cell" type="button" aria-label="Feld 8, leer" disabled>–</button>
+        </div>
+      </div>
+      <p id="pending" role="status">Keine ausstehende Aktion.</p>
+    </section>
+    <section aria-labelledby="diagnostics-heading">
+      <h2 id="diagnostics-heading">3. Empfangene Diagnosedaten</h2>
+      <dl>
+        <dt>Eigene playerId</dt><dd id="player-id">–</dd>
+        <dt>Eigene connectionId</dt><dd id="connection-id">–</dd>
+        <dt>roomInstanceId</dt><dd id="room-instance-id">–</dd>
+        <dt>matchId</dt><dd id="match-id">–</dd>
+        <dt>revision</dt><dd id="revision">–</dd>
+        <dt>Partiestatus</dt><dd id="match-status">–</dd>
+        <dt>Startspieler</dt><dd id="starting-player">–</dd>
+        <dt>Rematch-Zustimmungen</dt><dd id="rematch-votes">–</dd>
+      </dl>
+      <p id="snapshot-status">Noch keine Spieleransicht empfangen.</p>
+      <div class="table-scroll"><table>
+        <caption>Spielerplätze</caption>
+        <thead><tr><th>Name</th><th>playerId</th><th>Bereit</th><th>Verbindung</th></tr></thead>
+        <tbody id="players"></tbody>
+      </table></div>
+      <h3>Ausschließlich die empfangene eigene Engine-Ansicht</h3>
+      <pre id="view">null</pre>
+    </section>
+    <section aria-labelledby="stats-heading">
+      <h2 id="stats-heading">4. Globale Statistik</h2>
+      <button id="load-stats">Statistik aktualisieren</button>
+      <p id="stats-status">Noch nicht geladen.</p>
+      <p class="hint">Nach einem Sieg wird einmal aktualisiert. Die Outbox-Zustellung kann kurz verzögert sein; bei Bedarf manuell erneut laden.</p>
+      <pre id="stats">[]</pre>
+    </section>
+    <section aria-labelledby="log-heading">
+      <h2 id="log-heading">5. Nachrichtenprotokoll</h2>
+      <p>Letzte maximal 200 Einträge. Aufklappen für JSON; alle Inhalte werden als Text dargestellt.</p>
+      <ol id="log" reversed></ol>
+    </section>
+  </main>
+</body>
+</html>

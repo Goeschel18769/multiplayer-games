@@ -1,15 +1,71 @@
 <!doctype html>
 <html lang="de">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>multiplayer-games</title>
-    <link rel="stylesheet" href="./style.css">
-  </head>
-  <body>
-    <main>
-      <h1>multiplayer-games</h1>
-      <p>Das Projekt befindet sich im Aufbau.</p>
-    </main>
-  </body>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>multiplayer-games · Zusammen spielen</title>
+  <link rel="stylesheet" href="./style.css">
+  <script src="./app.js" defer></script>
+</head>
+<body>
+  <header class="page-header">
+    <a class="brand" href="#start">multiplayer-games</a>
+    <span class="tag">Ein Raum. Eure nächste Runde.</span>
+  </header>
+  <main>
+    <div class="intro" id="start">
+      <p class="eyebrow">Zusammen spielen</p>
+      <h1>Kleine Spiele,<br>gute Gesellschaft.</h1>
+      <p>Teile einen Raumcode mit deinen Mitspielern. Gebt eure Namen ein und legt gemeinsam los.</p>
+    </div>
+    <div class="layout">
+      <section class="card entry" aria-labelledby="entry-title">
+        <p class="eyebrow">01 · Euer Treffpunkt</p>
+        <h2 id="entry-title">In einen Raum</h2>
+        <form id="room-form">
+          <label for="player-name">Dein Name</label>
+          <input id="player-name" autocomplete="off" placeholder="Zum Beispiel Joël" required>
+          <label for="room-code">Raumcode</label>
+          <input id="room-code" autocomplete="off" spellcheck="false" placeholder="Zum Beispiel ABENDRUNDE" required>
+          <label for="game-select">Spiel für einen neuen Raum</label>
+          <select id="game-select" disabled><option value="">Spiele werden geladen …</option></select>
+          <p id="games-info" class="hint" role="status">Verfügbare Spiele werden geladen.</p>
+          <div class="stack">
+            <button id="create-room" type="button" class="primary" disabled>Raum erstellen &amp; beitreten</button>
+            <button id="join-room" type="submit">Bestehendem Raum beitreten</button>
+            <button id="reload-games" type="button" class="text-button">Spiele neu laden</button>
+          </div>
+        </form>
+        <p class="hint">Der Name ist dein Spielerplatz. Eine Verbindung mit demselben Namen kann ihn übernehmen.</p>
+      </section>
+      <section class="card play" aria-labelledby="play-title">
+        <div class="room-heading">
+          <div><p id="room-label" class="eyebrow">02 · Die nächste Runde</p><h2 id="play-title">Noch kein Raum geöffnet</h2></div>
+          <span id="connection-badge" class="badge">Nicht verbunden</span>
+        </div>
+        <p id="connection-message" class="notice" role="status" aria-live="polite">Raum erstellen oder einem bestehenden Raum beitreten.</p>
+        <div class="buttons connection-actions">
+          <button id="reconnect" type="button" hidden>Erneut verbinden</button>
+          <button id="leave-room" type="button" hidden>Raum verlassen</button>
+        </div>
+        <p id="match-message" class="match-message" role="status" aria-live="polite">Hier wartet euer Spiel auf euch.</p>
+        <ul id="players" class="players" aria-label="Spieler im Raum"></ul>
+        <div id="game-view" class="game-view"><p class="empty">Ein Raumcode bringt euch an denselben Tisch.</p></div>
+        <div class="buttons room-actions">
+          <button id="ready" type="button" disabled>Bereit</button>
+          <button id="start-match" type="button" class="primary" disabled>Partie starten</button>
+          <button id="rematch" type="button" disabled>Rematch zustimmen</button>
+          <button id="abort-match" type="button" class="text-button" disabled>Partie abbrechen</button>
+        </div>
+        <p class="hint leave-note">„Raum verlassen“ trennt deine Verbindung; dein Platz bleibt reserviert. Erst wenn alle getrennt sind, läuft die Fünf-Minuten-Frist für den Raum.</p>
+      </section>
+      <section class="card scores" aria-labelledby="scores-title">
+        <div class="room-heading"><div><p class="eyebrow">Über alle Runden</p><h2 id="scores-title">Die Siegestatistik</h2></div><button id="refresh-stats" type="button">Aktualisieren</button></div>
+        <p id="stats-info" class="hint" role="status" aria-live="polite">Statistik wird geladen …</p>
+        <ol id="scores" class="score-list" aria-label="Globale Siege"></ol>
+      </section>
+    </div>
+  </main>
+  <footer>Eine Internetverbindung ist erforderlich. Name und Raumcode bleiben nur bis zum Neuladen in diesem Fenster erhalten.</footer>
+</body>
 </html>
