@@ -10,7 +10,7 @@ Technische UUIDs authentifizieren niemanden.
 | Methode und Pfad | Ergebnis |
 | --- | --- |
 | `GET /health` | 200, `{"ok":true}` |
-| `GET /api/games` | 200, Array aus `{id,version,minPlayers,maxPlayers}` mit optionalem `modes`; Produktion: genau `tic-tac-toe`, Version `1`, 2–2 Spieler |
+| `GET /api/games` | 200, Array aus `{id,version,minPlayers,maxPlayers}` mit optionalem `modes`; Produktion: `tic-tac-toe` und `connect-four`, je Version `1`, 2–2 Spieler |
 | `GET /api/stats` | 200, Array aus `{nameKey,displayName,wins}` |
 | `PUT /api/stats` | 200, aktualisiertes Statistik-Array; atomare Korrektur, siehe unten |
 | `POST /api/rooms` | 201, neuer Raum, siehe unten |
@@ -259,7 +259,7 @@ keinen neuen HTTP-Status.
 `GET /api/games` liefert in der normalen Konfiguration:
 
 ```json
-[{"id":"tic-tac-toe","version":"1","minPlayers":2,"maxPlayers":2,"modes":[{"id":"classic","boardSize":3,"winLength":3},{"id":"five","boardSize":15,"winLength":5}]}]
+[{"id":"tic-tac-toe","version":"1","minPlayers":2,"maxPlayers":2,"modes":[{"id":"classic","boardSize":3,"winLength":3},{"id":"five","boardSize":15,"winLength":5}]},{"id":"connect-four","version":"1","minPlayers":2,"maxPlayers":2}]
 ```
 
 Die Moduserweiterung bleibt bei derselben ID, Version `1` und Protokoll v1.
@@ -351,3 +351,67 @@ welcome.settings verwenden; Create/Join prüfen Ablauf unabhängig von verspäte
 Alarmen. Statistik-Outbox überlebt logischen Raumablauf, Zustellung kann verzögert
 sein. Prüfbelege und Nutzerberichte stehen getrennt im
 [Prüfstand](../handoff/verification.md).
+
+
+## 4 Gewinnt — Aktion und Spieleransicht
+
+`connect-four`, Version `1`, genau zwei Spieler. Config ist exakt `{}`;
+zusätzliche Schlüssel oder abweichende Brettgrößen sind ungültig. Raumanlage:
+
+```json
+{"roomCode":"BEN-JOEL-C4","gameId":"connect-four","config":{}}
+```
+
+Das Brett hat sieben Spalten und sechs Reihen. Eine Aktion wählt ausschließlich
+die Spalte; der Server setzt den Stein auf den tiefsten freien Platz.
+Exakte Aktion (Spaltenindex als Ganzzahl von 0 bis 6):
+
+```json
+{"kind":"drop","column":0}
+```
+
+Weitere Aktionsfelder, volle Spalten, falscher Zugspieler und unbekannte Spieler
+werden mit `INVALID_ACTION` abgelehnt, ohne Mutation. Nach einem Raumabschluss
+liefert die Infrastruktur `MATCH_NOT_RUNNING`. Mindestens vier gleiche Steine
+waagrecht, senkrecht oder diagonal gewinnen; ein volles Brett ohne Sieg ergibt
+Unentschieden. Die Siegprüfung hat Vorrang vor Unentschieden.
+
+Die Ansicht enthält das öffentliche Brett zeilenweise, Reihe 0 oben, Reihe 5
+unten (Index = Reihe × 7 + Spalte, 0–41). Der Startspieler erhält `umber`,
+der andere `clay`; die Zuordnung rotiert bei Rematches mit dem Startspieler.
+Anzeigenamen kommen wie bisher aus `room.players`.
+
+```json
+{
+  "rows": 6,
+  "columns": 7,
+  "winLength": 4,
+  "board": [
+    null, null, null, null, null, null, null,
+    null, null, null, null, null, null, null,
+    null, null, null, null, null, null, null,
+    null, null, null, null, null, null, null,
+    null, null, null, null, null, null, null,
+    null, null, null, null, null, null, null
+  ],
+  "discs": [{"playerId":"p1","color":"umber"},{"playerId":"p2","color":"clay"}],
+  "yourColor": "umber",
+  "currentPlayerId": "p1",
+  "winningLine": null,
+  "lastMove": null
+}
+```
+
+Belegte Felder sind `"umber"` oder `"clay"`. `lastMove` ist null oder der letzte
+Zellindex. `winningLine` ist null oder die vollständige zusammenhängende
+Gewinnreihe mit mindestens vier Indizes. Nach Sieg/Draw ist currentPlayerId null.
+Ein Infrastruktur-Abbruch lässt den internen Engine-Zustand erhalten;
+`room.status` bleibt maßgeblich, Eingaben sind gesperrt. Nur reguläre Siege
+zählen über dieselbe Outbox global zu denselben Namenszeilen wie Tic Tac Toe.
+
+Das Frontend öffnet die Kachel direkt, ohne Modusdialog. Es schaltet sie nur bei
+passenden Spielemetadaten frei; die neue Engine muss daher separat im Backend
+bereitgestellt werden. Versteckte manuelle Räume und Reconnect gelten weiterhin.
+Ein manueller Join übernimmt die tatsächliche Engine des Zielraums; eine weitere
+Raumanlage verwendet diese Engine und deren Config. Das nächste Betreten über
+die Kachel verwendet wieder `BEN-JOEL-C4`.

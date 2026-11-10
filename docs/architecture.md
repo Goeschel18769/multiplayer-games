@@ -1,18 +1,20 @@
 # Architektur
 
-## Implementierter Stand — Phase 9
+## Implementierter Stand
 
 Ein npm-Projekt im Hauptordner verwaltet Backend, Frontend und Tests mit einer
 `package.json` und einer Lockdatei. Der Code verwendet JavaScript-ES-Module, kein
 TypeScript. Das Frontend besteht aus HTML, CSS und modularen Vanilla-JavaScript-
 Quellen; esbuild erzeugt einen portablen `release/`-Ordner mit drei Dateien.
-Tic Tac Toe ist als produktive Engine implementiert und über die Spieloberfläche
+Tic Tac Toe und 4 Gewinnt sind als produktive Engines implementiert und über die Spieloberfläche
 bedienbar. Die technische Diagnoseoberfläche bleibt separat erhalten.
 
 Das Backend besteht aus einem Cloudflare Worker, SQLite-basierten Durable Objects
 und nativen WebSockets mit der WebSocket Hibernation API. Die normale
 Engine-Registry enthält `tic-tac-toe` (Version 1, genau zwei Spieler) mit Classic
 (3×3, Gewinnlänge 3) und Fünf in einer Reihe (15×15, Gewinnlänge mindestens 5).
+Außerdem ist `connect-four` (Version 1, zwei Spieler, 7 Spalten × 6 Reihen,
+Schwerkraft und mindestens vier in einer Reihe) registriert.
 Unbekannte Engines liefern `UNKNOWN_GAME`. Die produktive Engine wird ebenso
 wie das allgemeine Framework mit echten Workerd-Integrationstests geprüft.
 Die getrennte 2–4-Spieler-Fixture bleibt ausschließlich in Testkonfigurationen.
@@ -27,11 +29,11 @@ Die getrennte 2–4-Spieler-Fixture bleibt ausschließlich in Testkonfiguratione
 | `backend/src/core/` | Allgemeiner Spielablauf, synchroner Engine-Vertrag, JSON-Prüfung, sichere Zustandsübergänge und individuelle Ansichten. |
 | `backend/src/protocol/` | Strikte Nachrichtenschemas, Fehlercodes, HTTP-Antworten und begrenztes Body-Lesen. |
 | `backend/src/stats/` | `GlobalStats`: dauerhafte globale Siege und Ergebnis-Deduplizierung in SQLite. |
-| `backend/src/games/` | Einzige zentrale Engine-Registry und reine produktive Tic-Tac-Toe-Engine. |
+| `backend/src/games/` | Zentrale Engine-Registry und reine Engines für Tic Tac Toe und 4 Gewinnt. |
 | `frontend/` | HTML-Vorlage und Styles der normalen deutschsprachigen Spieloberfläche. |
 | `frontend/src/` | ES-Modul-Einstieg und öffentliche Backend-/Protokollkonfiguration. |
 | `frontend/src/core/` | HTTP, allgemeiner Raum-/Verbindungszustand, Protokollprüfung und unabhängige Statistikabrufe. |
-| `frontend/src/games/` | Zentrale Darstellungs-Registry und Tic-Tac-Toe-Ansicht ohne Engine-Import oder Regelberechnung. |
+| `frontend/src/games/` | Zentrale Darstellungs-Registry und Ansichten für beide Spiele ohne Engine-Import oder Gewinnerberechnung. |
 | `shared/` | Gemeinsame Einstellungen, Namens- und Raumcode-Normalisierung. |
 | `scripts/` | Frontend-Build mit esbuild und festem Ausgabeverzeichnis. |
 | `tests/unit/` | Node-Tests für Normalisierung, Protokoll und Engine-Vertrag. |
@@ -313,3 +315,20 @@ Touchfeldern; Pfeiltasten und Home/End bewegen den Tastaturfokus. Die Darstellun
 nutzt weiterhin ausschließlich Serveransichten und entscheidet weder Regeln noch
 Gewinner. Fünf in einer Reihe erlaubt mindestens fünf gleiche Zeichen horizontal,
 vertikal oder entlang beider Diagonalen, ohne Eröffnungs- oder Verbotsregeln.
+
+
+## 4 Gewinnt — 10.11.2026
+
+Die zweite produktive Engine `connect-four` und ihre eigenständige Darstellung
+nutzen die vorhandenen Raum-, Transport- und Statistikmodule unverändert.
+Die Kachel öffnet direkt den festen Standardraum `BEN-JOEL-C4`. Ein manueller
+Join übernimmt jetzt spielübergreifend ID und Config des Servers; nachfolgende
+Create-Aufrufe bleiben dadurch beim tatsächlich betretenen Spiel.
+Die Oberfläche sendet `{kind:'drop',column}` und rendert ausschließlich die
+bestätigte Spieleransicht. Sie animiert nur den neuen letzten Stein einer
+aufeinanderfolgenden Revision desselben Matches; Reconnect-Stände spielen die
+Fallbewegung nicht erneut ab. Ganze Spalten sind anklickbar; Pfeile und Home/End
+steuern einen einzigen Tabstopp. Weniger Bewegung wird per CSS berücksichtigt.
+Braune Flächen und Zeichen besitzen eigenständige Hell-/Dunkel-/Büro-Werte.
+Auch die zweite PNG-Vorschau wird inline gebündelt; drei Release-Dateien bleiben
+erhalten, das GitHub-Release liefert weiterhin ZIP und drei Einzeldateien.

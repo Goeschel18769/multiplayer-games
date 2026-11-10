@@ -16,7 +16,7 @@ Hell-, Dunkel- und eigenständiger zurückhaltender Büro-Modus. Kein Seitenname
 keine Einleitung und keine dauerhafte Spielerwahl im Hub. Ben und Joël werden
 beim ersten Öffnen im Tab per Dialog gewählt; der eigene Name im Score öffnet die Wahl
 erneut. Ein Wechsel im Spiel trennt die Verbindung und führt zum Hub zurück.
-Jeder Klick auf die Kachel öffnet zuerst die Moduswahl: Classic (3×3, drei in einer
+Jeder Klick auf die Tic-Tac-Toe-Kachel öffnet zuerst die Moduswahl: Classic (3×3, drei in einer
 Reihe) oder Fünf in einer Reihe (15×15, mindestens fünf horizontal, vertikal oder
 entlang beider Diagonalen, ohne Eröffnungs- oder Verbotsregeln). Classic verwendet
 BEN-JOEL-TTT, 15×15 BEN-JOEL-TTT-15; derselbe Modus führt beide zusammen, die Modi
@@ -28,7 +28,15 @@ Lasche oben rechts mit Hover-, Fokus- und Tippbedienung. Ergänze dezente Hover-
 Druck- und Lichteffekte mit Unterstützung für reduzierte Bewegung.
 Kläre weitergehende Designwünsche vor einer neuen Designrichtung. Du darfst die Frontend-Struktur
 frei gestalten und ein separates Repository verwenden. Der dokumentierte
-Backend-Vertrag bleibt erhalten. Aktuell gibt es nur Tic Tac Toe in diesen Modi.
+Backend-Vertrag bleibt erhalten. Die zweite Kachel ist 4 Gewinnt: klassisch
+7 Spalten × 6 Reihen, Steine fallen nach unten, mindestens vier waagrecht,
+senkrecht oder diagonal gewinnen. Mehr Braun statt Grün, Umbra und Terrakotta,
+Spaltenvorschau und dezente Fallanimation nur für neue bestätigte Steine.
+Direkter Einstieg nach BEN-JOEL-C4 ohne Moduswahl; Config exakt {},
+gameId connect-four, Version "1". Keine lokalen Steine vor Serverbestätigung.
+Aktion {kind:'drop',column:0}, Spaltenindex 0–6. Die Spieleransicht und Farben
+sind in backend-api.md beschrieben. Nur bei passender Backend-Metadatenversion
+freischalten; ältere Backends zeigen eine deaktivierte Kachel.
 
 Verwende HTML, CSS und Vanilla JavaScript, kein TypeScript. Die Entwicklungsquellen
 sollen ES-Module verwenden. Erzeuge einen eigenständigen Release-Ordner mit
@@ -69,8 +77,8 @@ In der Spielansicht öffnet room-toggle einen versteckten Raumdialog mit aktuell
 Code und getrennten Aktionen für Erstellen und Beitreten. Erstellen verwendet
 den gewählten Modus, Beitreten übernimmt den tatsächlichen Servermodus aus der
 öffentlichen room.config, schon in der Lobby. Manuelle Raumwahl gilt nur für
-diese Spielansicht. Der nächste Kacheleinstieg fragt erneut den Modus ab und
-verwendet dessen Standardraum. Reconnect behält den aktuellen Code und wiederholt
+diese Spielansicht. Bei Tic Tac Toe fragt der nächste Kacheleinstieg erneut den
+Modus ab; 4 Gewinnt öffnet direkt seinen Standardraum. Reconnect behält den aktuellen Code und wiederholt
 keinen Create-POST; Rematch behält die Raumconfig. Die Statistik zählt beide Modi
 zusammen nach Namen.
 

@@ -94,7 +94,7 @@ async function harness(responder, { session = new Map(), blockedStorage = false 
       const path = new URL(url).pathname;
       calls.push({ path, options });
       const custom = await responder?.(path, options);
-      const body = custom?.body ?? (path === '/api/games' ? [{ id: 'tic-tac-toe', version: '1', minPlayers: 2, maxPlayers: 2, modes: [{ id: 'classic', boardSize: 3, winLength: 3 }, { id: 'five', boardSize: 15, winLength: 5 }] }]
+      const body = custom?.body ?? (path === '/api/games' ? [{ id: 'tic-tac-toe', version: '1', minPlayers: 2, maxPlayers: 2, modes: [{ id: 'classic', boardSize: 3, winLength: 3 }, { id: 'five', boardSize: 15, winLength: 5 }] }, { id: 'connect-four', version: '1', minPlayers: 2, maxPlayers: 2 }]
         : path === '/api/rooms' ? { roomCode: JSON.parse(options.body).roomCode } : []);
       return { ok: custom?.ok ?? true, async json() { return body; } };
     },
@@ -363,6 +363,80 @@ test('Spielstatus: Lobby bleibt sichtbar, eine echte Spielansicht übernimmt Spi
   assert.equal(h.get('start-match').hidden, true);
   assert.equal(h.get('rematch').disabled, false);
   assert.equal(h.get('abort-match').disabled, true);
+});
+
+test('4 Gewinnt: eigene Kachel öffnet denselben Standardraum direkt, Reconnect und Hub-Reset', async () => {
+  for (const player of ['ben', 'joel']) {
+    const h = await harness(); h.get('player-' + player).click();
+    await h.get('game-connect-four').click();
+    assert.equal(h.get('mode-dialog').open, false);
+    assert.equal(h.get('hub-view').hidden, true);
+    assert.equal(h.get('play-mode').hidden, true);
+    assert.equal(h.get('play-title').textContent, '4 Gewinnt');
+    assert.equal(socketCode(h.sockets[0]), 'BEN-JOEL-C4');
+    assert.deepEqual(JSON.parse(roomCalls(h)[0].options.body), { roomCode: 'BEN-JOEL-C4', gameId: 'connect-four', config: {} });
+    h.sockets[0].message(welcome('BEN-JOEL-C4', 'connect-four'));
+    assert.equal(h.get('game-view').children[0].className, 'c4-game');
+    h.sockets[0].ended(); h.get('reconnect').click();
+    assert.equal(socketCode(h.sockets[1]), 'BEN-JOEL-C4'); assert.equal(roomCalls(h).length, 1);
+    h.sockets[1].message(welcome('BEN-JOEL-C4', 'connect-four'));
+    manual(h, 'C4-ZWEIT'); await h.get('create-manual-room').click();
+    assert.deepEqual(JSON.parse(roomCalls(h)[1].options.body), { roomCode: 'C4-ZWEIT', gameId: 'connect-four', config: {} });
+    assert.equal(socketCode(h.sockets.at(-1)), 'C4-ZWEIT');
+    h.get('back-to-hub').click(); await h.get('game-connect-four').click();
+    assert.equal(socketCode(h.sockets.at(-1)), 'BEN-JOEL-C4');
+    h.get('back-to-hub').click(); await enter(h);
+    assert.equal(socketCode(h.sockets.at(-1)), 'BEN-JOEL-TTT'); assert.equal(h.get('play-mode').hidden, false);
+  }
+});
+
+test('4 Gewinnt: Backend-Fähigkeit steuert die Kachel; vorhandene Räume und echte Fehler', async () => {
+  const game = { id: 'connect-four', version: '1', minPlayers: 2, maxPlayers: 2 };
+  for (const body of [[], [{ ...game, version: '99' }], [game]]) {
+    const h = await harness(path => path === '/api/games' ? { body } : undefined);
+    h.get('player-ben').click(); await h.get('game-connect-four').click();
+    assert.equal(h.sockets.length, body[0]?.version === '1' ? 1 : 0);
+  }
+  for (const code of ['ROOM_EXISTS', 'INVALID_CONFIG', 'WRONG_CONFIRMATION']) {
+    const h = await harness(path => path === '/api/rooms' ? code === 'WRONG_CONFIRMATION'
+      ? { body: { roomCode: 'WRONG' } } : { ok: false, body: { code, message: code } } : undefined);
+    h.get('player-ben').click(); await h.get('game-connect-four').click();
+    assert.equal(h.sockets.length, code === 'ROOM_EXISTS' ? 1 : 0);
+    if (code !== 'ROOM_EXISTS') {
+      assert.equal(h.get('hub-view').hidden, false);
+      assert.ok(h.get('hub-message').textContent); assert.equal(h.get('game-connect-four').disabled, false);
+    }
+  }
+});
+
+test('4 Gewinnt: ausstehender Einstieg wird bei Spielerwechsel verworfen', async () => {
+  let finish;
+  const h = await harness(path => path === '/api/rooms' ? new Promise(resolve => { finish = resolve; }) : undefined);
+  h.get('player-ben').click();
+  const opening = h.get('game-connect-four').click();
+  h.get('scoreboard-player-ben').click(); h.get('player-joel').click();
+  finish({ body: { roomCode: 'BEN-JOEL-C4' } }); await opening;
+  assert.equal(h.sockets.length, 0); assert.equal(h.get('hub-view').hidden, false);
+  assert.equal(h.get('hub-message').textContent, '');
+});
+
+test('Spielwechsel per manuellem Raum übernimmt die tatsächliche Engine für neue Räume', async () => {
+  const h = await harness(); const first = await enter(h, 'joel', 'five');
+  first.message(welcome('BEN-JOEL-TTT-15', 'tic-tac-toe', { mode: 'five' }));
+  manual(h, 'C4-MANUAL'); await h.submit('room-form');
+  h.sockets.at(-1).message(welcome('C4-MANUAL', 'connect-four'));
+  assert.equal(h.get('play-title').textContent, '4 Gewinnt'); assert.equal(h.get('play-mode').hidden, true);
+  assert.equal(h.get('game-view').children[0].className, 'c4-game');
+  manual(h, 'C4-NEU'); await h.get('create-manual-room').click();
+  assert.equal(JSON.parse(roomCalls(h).at(-1).options.body).gameId, 'connect-four');
+  assert.deepEqual(JSON.parse(roomCalls(h).at(-1).options.body).config, {});
+  h.sockets.at(-1).message(welcome('C4-NEU', 'connect-four'));
+  manual(h, 'TTT-MANUAL'); await h.submit('room-form');
+  h.sockets.at(-1).message(welcome('TTT-MANUAL', 'tic-tac-toe', { mode: 'five' }));
+  assert.equal(h.get('play-mode').hidden, false);
+  assert.match(h.get('play-mode').textContent, /15 × 15/);
+  manual(h, 'TTT-NEU'); await h.get('create-manual-room').click();
+  assert.deepEqual(JSON.parse(roomCalls(h).at(-1).options.body), { roomCode: 'TTT-NEU', gameId: 'tic-tac-toe', config: { mode: 'five' } });
 });
 
 test('Darstellung: Hover, erster Touch-Klick, Fokus, Escape und Aussenklick öffnen/schliessen die Lippe', async () => {

@@ -1,9 +1,10 @@
 # Bestehender Engine-Vertrag
 
-Stand 07.11.2026. Diese Beschreibung dokumentiert den lokalen Vertrag. Für ein
+Stand 10.11.2026. Diese Beschreibung dokumentiert den lokalen Vertrag. Für ein
 reines neues Frontend reicht der [API-Vertrag](backend-api.md); eine neue Engine
-ist nur bei einem späteren zusätzlichen Spiel nötig. Produktiv existiert allein
-`tic-tac-toe`, Version `1`, `minPlayers: 2`, `maxPlayers: 2`. Config `{}` oder
+ist nur bei einem späteren zusätzlichen Spiel nötig. Produktiv existieren
+`tic-tac-toe` und `connect-four`, je Version `1`, `minPlayers: 2`, `maxPlayers: 2`.
+Für Tic Tac Toe gilt: Config `{}` oder
 exakt `{"mode":"classic"}` wählt Classic (3×3, Gewinnlänge 3); exakt
 `{"mode":"five"}` wählt 15×15 mit mindestens fünf in einer Reihe. Keine
 zusätzlichen Config-Schlüssel, Eröffnungs- oder Verbotsregeln. Beide Modi zählen
@@ -93,7 +94,7 @@ Gewinnlinie mit mindestens fünf Feldern horizontal, vertikal oder diagonal.
 
 Im Backend liegt die zentrale Registry in `backend/src/games/registry.js`.
 Eine neue reine Engine unter `backend/src/games/` implementieren, importieren und
-der bestehenden Liste `createRegistry([ticTacToe, weitereEngine])` hinzufügen.
+der bestehenden Liste `createRegistry([ticTacToe, connectFour, weitereEngine])` hinzufügen.
 assertEngine prüft Metadaten/Funktionen, doppelte IDs sind unzulässig.
 registry.get(id) liefert die Engine oder UNKNOWN_GAME; list() veröffentlicht nur
 id, version, minPlayers, maxPlayers und gegebenenfalls modes über GET /api/games.
@@ -118,3 +119,16 @@ keinen Engine-Import und keine verbindliche lokale Regelauswertung. Ein neues
 Spiel braucht eine passende Darstellung und gegebenenfalls Config-Eingaben sowie
 ein neu gebautes Frontend. Ein separates Frontend darf seine interne Registry
 anders organisieren; dies ist keine zusätzlich vorgeschriebene Backend-API.
+
+
+## Bestehende Engine: 4 Gewinnt
+
+`connectFour` (`connect-four`, Version `1`) implementiert denselben reinen
+synchronen Vertrag, Config exakt `{}`, zwei Spieler, sieben Spalten und sechs
+Reihen. Aktion exakt `{kind:'drop',column:0}`, Spaltenindex 0–6. Der Server
+bestimmt den tiefsten freien Platz, mindestens vier zusammenhängende gleiche
+Steine in jeder der vier Richtungen und Draw auf vollem Brett ohne Sieg.
+Startspieler `umber`, zweiter Spieler `clay`; Rematch rotiert die Zuordnung.
+Das vollständige View-Schema und Grenzverhalten stehen in
+[backend-api.md](backend-api.md#4-gewinnt--aktion-und-spieleransicht).
+Die Ansicht berechnet keine Gewinner und setzt keine optimistischen Steine.

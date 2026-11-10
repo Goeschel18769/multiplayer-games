@@ -92,14 +92,15 @@ Healthcheck: HTTP 200 mit `{"ok":true}`. Andere Methoden auf `/health` liefern
 405 mit `Allow: GET`. Der Root-Pfad `/` liefert absichtlich 404. HTTP-Fehler
 verwenden konsistent `{code,message}` und enthalten CORS-Header.
 
-## Aktueller Stand — Phase 9: Spielhub für Ben und Joël
+## Aktueller Stand: Spielhub für Ben und Joël
 
 Implementiert sind Projektstruktur, Healthcheck, HTTP-API, wiederverwendbares
 Raumframework, Reconnect, Heartbeat, fünf Minuten Leerraumfrist, gemeinsamer
 Alarm-Scheduler, Engine-Vertrag, individuelle Spieleransichten und zuverlässige
 globale Siegestatistik mit persistenter Outbox und Deduplizierung.
 
-Die produktive Registry enthält `tic-tac-toe` (Version 1, genau zwei Spieler).
+Die produktive Registry enthält `tic-tac-toe` und `connect-four`
+(je Version 1, genau zwei Spieler).
 Die reine Engine bietet Classic (3×3, drei in einer Reihe) und Fünf in einer
 Reihe (15×15, mindestens fünf horizontal, vertikal oder diagonal), individuelle
 Spieleransichten und strikte Zugprüfung. Es gelten keine besonderen Eröffnungs-
@@ -107,14 +108,22 @@ oder Verbotsregeln. Reguläre Siege beider Modi werden gemeinsam durch die
 bestehende Statistik-Outbox gezählt. Raum-/Transportkern und Fünf-Minuten-Frist
 bleiben unverändert. Die 2–4-Spieler-Fixture ist nur in Testkonfigurationen aktiv.
 
-Der kompakte Hub zeigt eine Tic-Tac-Toe-Kachel mit generierter Bildvorschau in warmer
+4 Gewinnt verwendet das klassische Brett mit sieben Spalten und sechs Reihen.
+Ein Stein fällt auf den tiefsten freien Platz; mindestens vier gleiche Steine
+waagrecht, senkrecht oder diagonal gewinnen. Volle Spalten sind gesperrt.
+Das Spiel hat eine eigene Kachel und führt direkt in `BEN-JOEL-C4`, ohne Moduswahl.
+Die Darstellung verwendet warme Braun- und Terrakottatöne, Spaltenvorschau und
+eine dezente Fallanimation für neu bestätigte Züge. Alle Spiele zählen Siege
+in denselben Namenszeilen.
+
+Der kompakte Hub zeigt Spielkacheln mit generierten Bildvorschauen in warmer
 Papieroptik, ohne Seitennamen oder Begrüßungstexte. Der hervorgehobene globale
 Siegestand steht oben mittig: Zahlen öffnen Bearbeiten und Reset, Namen die
 Spielerwahl. Beim ersten Öffnen im Tab wird Ben oder Joël in einem Dialog gewählt.
 Hell-, Dunkel- und der eigens gestaltete Büro-Modus sind über eine kleine Lasche
 oben rechts per Hover, Tastaturfokus oder Antippen erreichbar. Dezente Hover-
 und Druckeffekte beachten die Einstellung für reduzierte Bewegung.
-Jeder Klick auf die Spielkachel öffnet zuerst die Moduswahl. Das große Brett
+Jeder Klick auf die Tic-Tac-Toe-Kachel öffnet zuerst die Moduswahl. Das große Brett
 bleibt über einen scrollbaren Ausschnitt mit ausreichend großen Touchfeldern
 sowie Pfeiltasten und Home/End bedienbar. Nur der Server entscheidet Spielregeln
 und Ergebnisse.
@@ -158,8 +167,7 @@ Konten, Passwörter oder Sitzungstokens.
 - [Tests, kontrollierte Zeit und lokale Einschränkungen](docs/testing.md)
 
 Öffentliche Backend-Konfiguration bleibt getrennt von Zugangsdaten. Öffentliche
-`.example`-Vorlagen dürfen ohne Geheimnisse versioniert werden. Es gibt kein
-Deployment oder weitere Spiele in dieser Phase. Die eigenständig weitergebbare
+`.example`-Vorlagen dürfen ohne Geheimnisse versioniert werden. Die eigenständig weitergebbare
 [Frontend-Übergabe](handoff/README.md) beschreibt den implementierten Vertrag;
 `handoff.zip` enthält dieselben sechs Übergabedateien.
 
@@ -212,6 +220,10 @@ Die [Bildquelle](frontend/src/assets/tic-tac-toe-preview.png) wurde mit dem
 integrierten Bildgenerator `imagegen` erzeugt (1536×1024 Pixel, rund 2,83 MiB).
 Der [verwendete Prompt](frontend/src/assets/tic-tac-toe-preview.prompt.txt)
 liegt neben der PNG-Datei.
+Die Vorschau für 4 Gewinnt wurde ebenfalls mit dem eingebauten Imagegen-Werkzeug
+erzeugt: [Bildquelle](frontend/src/assets/connect-four-preview.png) und
+[verwendeter Prompt](frontend/src/assets/connect-four-preview.prompt.txt).
+Beide Bilder bleiben in `app.js` eingebettet.
 
 ## Öffentliche Konfiguration
 
@@ -238,12 +250,14 @@ bestehenden Raum. Parallele Klicks erzeugen dadurch keine getrennten Räume.
 Weitere Spiele erhalten später jeweils ihren eigenen festen Raumcode in der
 Frontend-Registry. Es gibt keine zufälligen Ausweichräume, die beide Spieler
 unbemerkt trennen könnten.
+4 Gewinnt führt direkt über seine Kachel nach `BEN-JOEL-C4`; auch hier gilt
+Create und ausschließlich bei `ROOM_EXISTS` Join, ohne automatischen Create-Replay.
 
 In der Spielansicht öffnet eine unauffällige Raumsteuerung einen Dialog mit dem
 aktuellen Code sowie getrennten Aktionen für Erstellen und Beitreten. Manuelle
 Raumanlage übernimmt den gewählten Modus; ein Beitritt verwendet den tatsächlichen
 Modus des Servers. Manuelle Raumwahl gilt nur für diese Spielansicht; der nächste
-Einstieg aus dem Hub fragt erneut nach dem Modus und nutzt dessen Standardraum.
+Tic-Tac-Toe-Einstieg aus dem Hub fragt erneut nach dem Modus und nutzt dessen Standardraum.
 Reconnect behält den aktuellen Code und legt keinen Raum an. Rematches behalten
 die Raumkonfiguration, Siege zählen über beide Modi gemeinsam nach Namen.
 
@@ -281,10 +295,14 @@ dafür optional `modes`; ohne diese Angabe bietet das Frontend ausschließlich
 Classic an. Die Moduserweiterung bleibt bei `tic-tac-toe`, Version `1`, und
 Protokoll v1. Ein Deployment ist nicht Teil dieser Änderung.
 
+**4 Gewinnt benötigt die neue Backend-Registry.** Die Kachel ist erst spielbar,
+wenn `/api/games` `connect-four`, Version `1`, meldet. Ein GitHub-Release
+aktualisiert den Cloudflare-Worker nicht; dessen Deployment bleibt getrennt.
+
 ## Spieloberfläche und Diagnoseoberfläche
 
 - `release/index.html`: normale Spieloberfläche ohne technische IDs, Roh-JSON
-  oder Fixture-Aktionen; unterstützt derzeit Tic Tac Toe.
+  oder Fixture-Aktionen; unterstützt Tic Tac Toe und 4 Gewinnt.
 - `tests/manual/client/index.html`: separate technische Diagnoseoberfläche für
   HTTP/WS, IDs und Nachrichten. Sie kann den normalen lokalen Server auf Port
   8787 oder den getrennten Fixture-Server (`npm run dev:manual`) auf Port 8788

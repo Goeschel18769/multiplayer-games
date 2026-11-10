@@ -111,8 +111,8 @@ curl -i http://localhost:8787/api/stats
 curl -i -X POST http://localhost:8787/health
 ```
 
-Erwartet: 200 mit `{"ok":true}`, 404 mit `NOT_FOUND`, 200 mit genau Tic Tac Toe
-(Version 1, minPlayers/maxPlayers 2), 200 mit Statistik-Array und 405 mit
+Erwartet: 200 mit `{"ok":true}`, 404 mit `NOT_FOUND`, 200 mit Tic Tac Toe und
+4 Gewinnt (je Version 1, minPlayers/maxPlayers 2), 200 mit Statistik-Array und 405 mit
 `Allow: GET`. Raumerstellung mit einer erfundenen Spiel-ID liefert `UNKNOWN_GAME`.
 
 ## Historisches Ergebnis der Phase-3-Prüfung
@@ -430,3 +430,45 @@ Abschluss: beide Testtabs geschlossen und den lokalen Testserver beendet.
 genau drei Dateien, PNG eingebettet, keine lokale Testadresse oder Laufzeit-Imports.
 Die sechs Übergabedateien wurden erneut in `handoff.zip` gepackt und bytegleich
 verglichen; `git diff --check` erfolgreich.
+
+
+## 4 Gewinnt — 10.11.2026
+
+- `npm test`: **110 Unit-Tests und 24 Workerd-Integrationstests**, alle bestanden.
+  Neue Regeln und Darstellung: Gravitation, volle Spalten, beide Spieler,
+  waagrechte/senkrechte/beide diagonale Siege, komplette Gewinnreihen, 42 legale
+  Züge bis Draw, Sieg auf dem letzten Feld, unveränderte Eingaben und kopierte
+  JSON-Ansichten. Ungültige Config/Aktionen bleiben ohne Mutation.
+- Produktives Workerd mit zwei echten WebSockets: Create/Join, Ready/Start,
+  Fallposition bis zur vollen Spalte, abgelehnte Züge, Reconnect mit identischer
+  Ansicht/Identität, Abort, Rematch-Startrotation, Sieg mit dedupliziertem Ergebnis,
+  Draw und gemeinsam gezählte Siege derselben Namen aus einer separaten
+  Tic-Tac-Toe-Partie. Raum-/Transport-/Statistik-Kern unverändert.
+- App-/Renderer-Tests prüfen direkte Kachel ohne Modusdialog, gemeinsame
+  Standardräume, getrennte manuelle Räume und Rückkehr zum Standard,
+  spielübergreifenden Join mit anschließender Anlage für die tatsächliche Engine,
+  fehlende Backend-Unterstützung, späte Antworten bei Spielerwechsel, Pending-
+  und Zug-Sperren, zugängliche Spaltensteuerung sowie Fallanimation ohne
+  optimistische Brettmutation oder Reconnect-Replay.
+- Echte Chrome-Prüfung auf macOS über eine unabhängig kopierte lokale Ausgabe
+  `/private/tmp/connect-four.bSJp1T/` direkt per file://, mit isoliertem Backend
+  auf Port 8789 und Persistenz `.wrangler/connect-four-20261110/`. Zwei Tabs
+  Ben/Joël betreten über die Kachel denselben Raum, Ready/Start, sieben
+  synchronisierte Züge bis zu Bens senkrechtem Sieg, markierte vier Steine und
+  globaler Score 1:0. Beidseitiger Rematch leert das Brett und wechselt den
+  Startspieler zu Joël. Keine öffentlichen Spiele oder Statistikänderungen.
+- Dunkle Braunansicht am Desktop und helle/büroartige Siegansicht bei bestätigten
+  320 CSS-Pixeln per Screenshot geprüft. Das 7×6-Brett passt ohne horizontales
+  Scrollen. Chrome-Konsole zeigt erwartetes HTTP 409 bei ROOM_EXISTS; keine
+  JavaScript-Ausnahme beobachtet. Native Touchgeräte und andere Browser bleiben
+  offen. Reduzierte Bewegung ist in CSS berücksichtigt, nicht per realer
+  Betriebssystem-Einstellung getestet.
+- `npm run check:deploy` erfolgreich (Dry-Run, beide unveränderten Bindings);
+  `npm run package:release` erstellt öffentliche Ausgabe und ZIP mit genau
+  index.html/app.js/style.css. Beide PNG-Vorschauen sind inline eingebettet.
+  Lokale Browser-Tabs geschlossen, lokalen Testserver beendet. Kein Deployment.
+
+Ein zusätzlicher read-only Abruf der öffentlichen Spieleliste aus dem lokalen
+Prüfprozess lieferte HTTP 403. Dieser Abruf belegt daher keine aktuelle
+öffentliche Engine-Verfügbarkeit. 4 Gewinnt benötigt das aktualisierte Backend;
+eine neue Frontend-Ausgabe allein stellt die Engine nicht online bereit.

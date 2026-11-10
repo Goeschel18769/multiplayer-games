@@ -308,12 +308,13 @@ test('Unentschieden, Abbruch, Disconnect und Löschung erzeugen keinen Sieg', as
 });
 
 
-test('Produktionsbundle: Tic Tac Toe registriert, Fixture und Test-RPCs nicht aktiviert', async () => {
+test('Produktionsbundle: produktive Spiele registriert, Fixture und Test-RPCs nicht aktiviert', async () => {
   const worker = await mf.getWorker('phase3-production');
   assert.deepEqual(await (await worker.fetch('http://localhost/api/games')).json(), [
     { id: 'tic-tac-toe', version: '1', minPlayers: 2, maxPlayers: 2, modes: [
       { id: 'classic', boardSize: 3, winLength: 3 }, { id: 'five', boardSize: 15, winLength: 5 },
     ] },
+    { id: 'connect-four', version: '1', minPlayers: 2, maxPlayers: 2 },
   ]);
   assert.deepEqual(await (await worker.fetch('http://localhost/health')).json(), { ok: true });
   const response = await worker.fetch('http://localhost/api/rooms', { method: 'POST',
@@ -635,6 +636,91 @@ test('Produktives Tic Tac Toe 15×15: öffentliche Modi, eigener Raum, Reconnect
   assert.deepEqual(unchanged.view.board, Array(9).fill(null));
   assert.deepEqual(await readStats(), wins);
   for (const game of [five, classic]) for (const c of game.clients) c.ws.close(1000, 'Done');
+});
+
+test('Produktives 4 Gewinnt: Schwerkraft, volle Spalte, Reconnect, Sieg, Draw, Rematch und gemeinsame Statistik', async () => {
+  const fetcher = (path, options) => productionMf.dispatchFetch(`http://localhost${path}`, options);
+  const readStats = async () => (await fetcher('/api/stats')).json();
+  const roomCode = `C4-${++sequence}`, names = [`C4-Ben-${sequence}`, `C4-Joel-${sequence}`];
+  const createGame = async (roomCode, gameId, config) => fetcher('/api/rooms', { method: 'POST',
+    headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ roomCode, gameId, config }) });
+  const invalid = await createGame(`C4-BAD-${sequence}`, 'connect-four', { columns: 8 });
+  assert.equal(invalid.status, 400); assert.equal((await invalid.json()).code, 'INVALID_CONFIG');
+  assert.equal((await createGame(roomCode, 'connect-four', {})).status, 201);
+  const clients = [await join(roomCode, names[0], fetcher), await join(roomCode, names[1], fetcher)];
+  assert.deepEqual(clients[0].welcome.room.config, {});
+  for (const c of clients) assert.equal((await c.command('ready', { ready: true })).type, 'ack');
+  let state;
+  async function synchronized(ack) {
+    const states = await Promise.all(clients.map(c => c.next(m => m.type === 'state' && m.matchId === ack.matchId && m.revision === ack.revision)));
+    assert.deepEqual(states[0].room, states[1].room); assert.deepEqual(states[0].view.board, states[1].view.board);
+    assert.notEqual(states[0].view.yourColor, states[1].view.yourColor); state = states[0];
+  }
+  await synchronized(await clients[0].command('start'));
+  assert.deepEqual(state.view.board, Array(42).fill(null));
+  const current = () => clients.find(c => c.welcome.playerId === state.view.currentPlayerId);
+  const action = column => ({ matchId: state.matchId, expectedRevision: state.revision, action: { kind: 'drop', column } });
+  async function drop(column) { const ack = await current().command('action', action(column)); assert.equal(ack.type, 'ack'); await synchronized(ack); }
+  const other = clients.find(c => c !== current());
+  assert.equal((await other.command('action', action(0))).code, 'INVALID_ACTION');
+  assert.equal((await current().command('action', action(7))).code, 'INVALID_ACTION');
+  for (let move = 0; move < 6; move++) { await drop(0); assert.equal(state.view.lastMove, (5 - move) * 7); }
+  assert.equal((await current().command('action', action(0))).code, 'INVALID_ACTION');
+  assert.equal(state.revision, 6);
+  const old = clients[0]; old.ws.close(1000, 'C4 reconnect');
+  clients[0] = await join(roomCode, names[0], fetcher);
+  assert.equal(clients[0].welcome.playerId, old.welcome.playerId);
+  assert.deepEqual(clients[0].welcome.view.board, state.view.board);
+  assert.equal(clients[0].welcome.view.lastMove, 0); assert.equal(clients[0].welcome.revision, 6);
+  await synchronized(await clients[0].command('abort', { matchId: state.matchId }));
+  assert.equal(state.room.status.type, 'aborted');
+  assert.equal((await current().command('action', action(1))).code, 'MATCH_NOT_RUNNING');
+  const keys = names.map(name => name.toLowerCase());
+  const total = rows => rows.filter(row => keys.includes(row.nameKey)).reduce((sum, row) => sum + row.wins, 0);
+  assert.equal(total(await readStats()), 0);
+  async function rematch() {
+    const previous = state.matchId, starter = state.room.startingPlayerId;
+    let ack;
+    for (const c of clients) { ack = await c.command('rematch', { matchId: previous }); assert.equal(ack.type, 'ack'); }
+    await synchronized(ack);
+    assert.notEqual(state.matchId, previous); assert.notEqual(state.room.startingPlayerId, starter);
+    assert.equal(state.revision, 0); assert.deepEqual(state.view.board, Array(42).fill(null)); assert.equal(state.view.lastMove, null);
+  }
+  await rematch();
+  const winnerId = state.view.currentPlayerId;
+  for (const column of [0,6,1,6,2,5]) await drop(column);
+  const finisher = current(), finish = { v: 1, type: 'action', requestId: 'c4-finish-once', ...action(3) };
+  finisher.send(finish); const ack = await finisher.next(m => m.requestId === finish.requestId);
+  assert.equal(ack.type, 'ack'); await synchronized(ack);
+  assert.deepEqual(state.room.status, { type: 'won', winnerPlayerId: winnerId });
+  assert.deepEqual(state.view.winningLine, [35,36,37,38]); assert.equal(state.view.currentPlayerId, null);
+  const wins = await eventually(readStats, rows => total(rows) === 1);
+  finisher.send(finish); assert.deepEqual(await finisher.next(m => m.requestId === finish.requestId), ack);
+  assert.deepEqual(await readStats(), wins);
+  assert.equal((await finisher.command('action', action(4))).code, 'MATCH_NOT_RUNNING');
+  await rematch();
+  for (const column of [0,2,5,1,2,6,0,6,1,4,2,0,5,1,1,6,6,0,6,5,0,1,1,2,4,6,0,2,5,5,5,2,4,4,3,4,4,3,3,3,3,3]) await drop(column);
+  assert.equal(state.room.status.type, 'draw'); assert.equal(state.view.currentPlayerId, null);
+  assert.equal(total(await readStats()), 1);
+
+  // Dieselben Namen spielen getrennt Tic Tac Toe; Siege landen in denselben Statistikzeilen.
+  const tttCode = `C4-TTT-${sequence}`;
+  assert.equal((await createGame(tttCode, 'tic-tac-toe', {})).status, 201);
+  const ttt = [await join(tttCode, names[0], fetcher), await join(tttCode, names[1], fetcher)];
+  for (const c of ttt) await c.command('ready', { ready: true });
+  let tttState;
+  async function syncTtt(ack) {
+    const states = await Promise.all(ttt.map(c => c.next(m => m.type === 'state' && m.matchId === ack.matchId && m.revision === ack.revision)));
+    tttState = states[0];
+  }
+  await syncTtt(await ttt[0].command('start'));
+  for (const cell of [0,3,1,4,2]) {
+    const c = ttt.find(c => c.welcome.playerId === tttState.view.currentPlayerId);
+    await syncTtt(await c.command('action', { matchId: tttState.matchId, expectedRevision: tttState.revision, action: { kind: 'place', cell } }));
+  }
+  await eventually(readStats, rows => total(rows) === 2);
+  assert.equal(state.room.status.type, 'draw'); assert.equal(state.view.board.filter(Boolean).length, 42);
+  for (const c of [...clients, ...ttt]) c.ws.close(1000, 'Done');
 });
 
 test('Siegestand per HTTP: atomare Korrektur, Konflikte, Reset ohne erneutes Zählen alter Siege', async () => {

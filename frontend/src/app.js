@@ -7,11 +7,13 @@ import { initMotion } from './core/motion.js';
 import { gamePresentation, supportedGame, supportedMode } from './games/registry.js';
 import { TTT_MODES } from './games/tic-tac-toe-modes.js';
 import previewImage from './assets/tic-tac-toe-preview.png';
+import connectFourPreview from './assets/connect-four-preview.png';
 
 const $ = id => document.getElementById(id);
 const api = createApi(CONFIG);
 const names = { ben: 'Ben', joel: 'Joël' };
 $('ttt-preview-image').src = previewImage;
+$('c4-preview-image').src = connectFourPreview;
 let selectedPlayer = null;
 let activeGameId = 'tic-tac-toe';
 let activeMode = 'classic';
@@ -109,13 +111,15 @@ const connection = new RoomConnection(CONFIG, {
     if (state.phase === 'connecting') hasRoomSnapshot = false;
     if (state.phase === 'connected') {
       hasRoomSnapshot = true;
+      activeGameId = state.snapshot.room.gameId;
+      activeRoomCode = state.snapshot.room.roomCode;
       if (state.snapshot?.room.gameId === 'tic-tac-toe') {
         const { room, view } = state.snapshot;
         const explicit = view?.mode ?? room.config?.mode;
         const size = view?.boardSize ?? (Array.isArray(view?.board) ? Math.sqrt(view.board.length) : null);
         activeMode = Object.hasOwn(TTT_MODES, explicit) ? explicit : size === 15 ? 'five' : 'classic';
         activeRoomCode = room.roomCode;
-      }
+      } else activeMode = null;
     }
     render();
   },
@@ -137,7 +141,7 @@ function choosePlayer(key) {
   const changed = selectedPlayer !== key;
   selectedPlayer = key;
   try { sessionStorage.setItem('multiplayer-player', key); } catch { /* Auswahl bleibt bis zum Neuladen erhalten. */ }
-  if (changed && screen === 'play') showHub();
+  if (changed && (screen === 'play' || creating)) showHub();
   $('hub-message').textContent = '';
   $('player-dialog').close();
   render();
@@ -186,10 +190,12 @@ function showHub(event) {
   pendingMode = null;
   hasRoomSnapshot = false;
   screen = 'hub';
+  activeGameId = 'tic-tac-toe';
   activeMode = 'classic';
   activeRoomCode = TTT_MODES[activeMode].roomCode;
   attempted = false;
   localMessage = '';
+  $('hub-message').textContent = '';
   $('room-dialog').close();
   $('mode-dialog').close();
   connection.disconnect();
@@ -232,6 +238,7 @@ function openModeDialog() {
   $('mode-' + (supportedMode(modeMetadata(), activeMode) ? activeMode : 'classic')).focus();
 }
 $('game-tic-tac-toe').addEventListener('click', openModeDialog);
+$('game-connect-four').addEventListener('click', () => openGame('connect-four'));
 $('play-mode').addEventListener('click', openModeDialog);
 $('close-mode-dialog').addEventListener('click', closeModeDialog);
 $('mode-dialog').addEventListener('cancel', event => {
@@ -277,6 +284,38 @@ async function selectMode(modeId) {
     if (generation === opening) { pendingMode = null; creating = false; render(); }
   }
 }
+
+async function openGame(gameId) {
+  const presentation = gamePresentation(gameId);
+  if (creating || gamesBusy || !presentation || !games.some(game => game.id === gameId && supportedGame(game))) return;
+  if (!selectedPlayer) { openPlayerDialog(); return; }
+  const generation = ++opening;
+  creating = true;
+  $('hub-message').textContent = 'Raum wird geöffnet …';
+  render();
+  try {
+    try {
+      const created = await api.createRoom(presentation.roomCode, gameId, presentation.config || {});
+      if (created.roomCode !== presentation.roomCode) throw new Error('Der Raum konnte nicht bestätigt werden. Bitte erneut versuchen.');
+    } catch (error) { if (error.code !== 'ROOM_EXISTS') throw error; }
+    if (generation !== opening) return;
+    activeGameId = gameId;
+    activeMode = null;
+    activeRoomCode = presentation.roomCode;
+    creating = false;
+    screen = 'play';
+    attempted = true;
+    hasRoomSnapshot = false;
+    localMessage = '';
+    $('hub-message').textContent = '';
+    connection.connect(names[selectedPlayer], activeRoomCode);
+    $('play-title').focus();
+  } catch (error) {
+    if (generation === opening) $('hub-message').textContent = error.message;
+  } finally {
+    if (generation === opening) { creating = false; render(); }
+  }
+}
 $('reconnect').addEventListener('click', reconnect);
 
 function manualIdentity() {
@@ -319,7 +358,8 @@ $('create-manual-room').addEventListener('click', async () => {
   $('manual-room-status').textContent = 'Raum wird erstellt …';
   render();
   try {
-    const created = await api.createRoom(normalized.roomCode, activeGameId, TTT_MODES[activeMode].config);
+    const config = gamePresentation(activeGameId)?.modes?.[activeMode]?.config || gamePresentation(activeGameId)?.config || {};
+    const created = await api.createRoom(normalized.roomCode, activeGameId, config);
     if (generation !== opening) return;
     if (created.roomCode !== normalized.roomCode) throw new Error('Die Raumerstellung konnte nicht bestätigt werden.');
     joinManualRoom(normalized);
@@ -333,8 +373,10 @@ $('create-manual-room').addEventListener('click', async () => {
 function render() {
   $('hub-view').hidden = screen !== 'hub';
   $('play-view').hidden = screen !== 'play';
-  $('play-view').dataset.mode = activeMode;
-  const mode = TTT_MODES[activeMode];
+  $('play-view').dataset.game = activeGameId;
+  $('play-view').dataset.mode = activeMode || '';
+  const mode = TTT_MODES[activeMode] || TTT_MODES.classic;
+  $('play-mode').hidden = activeGameId !== 'tic-tac-toe';
   $('play-mode').textContent = `${mode.label} · ${mode.winLength} in Reihe`;
   $('play-mode').disabled = screen !== 'play' || manualCreation;
   for (const modeId of Object.keys(TTT_MODES)) {
@@ -342,6 +384,7 @@ function render() {
     $('mode-' + modeId).setAttribute('aria-pressed', String(activeMode === modeId));
   }
   $('game-tic-tac-toe').disabled = creating || gamesBusy || !games.some(game => game.id === 'tic-tac-toe' && supportedGame(game));
+  $('game-connect-four').disabled = creating || gamesBusy || !games.some(game => game.id === 'connect-four' && supportedGame(game));
   $('reload-games').disabled = gamesBusy;
   for (const key of Object.keys(names)) {
     const selected = key === selectedPlayer;
@@ -380,7 +423,7 @@ function render() {
   }
   const own = room?.players.find(player => player.playerId === playerId);
   const lobby = room?.status.type === 'lobby' && snapshot.matchId === null;
-  const gameOwnsStatus = room?.gameId === 'tic-tac-toe' && !lobby && snapshot?.view != null;
+  const gameOwnsStatus = ['tic-tac-toe', 'connect-four'].includes(room?.gameId) && !lobby && snapshot?.view != null;
   $('players').hidden = gameOwnsStatus;
   const metadata = games.find(game => game.id === room?.gameId && supportedGame(game));
   $('ready').hidden = !lobby;
@@ -426,8 +469,8 @@ async function loadGames() {
     if (!Array.isArray(list)) throw new Error('Spiele konnten nicht geladen werden.');
     games = list.filter(game => typeof game?.id === 'string' && typeof game.version === 'string' &&
       Number.isSafeInteger(game.minPlayers) && Number.isSafeInteger(game.maxPlayers) && game.minPlayers > 0 && game.maxPlayers >= game.minPlayers);
-    const available = games.some(game => game.id === 'tic-tac-toe' && supportedGame(game));
-    $('games-info').textContent = available ? '' : 'Tic Tac Toe ist gerade nicht verfügbar.';
+    const available = games.some(game => supportedGame(game));
+    $('games-info').textContent = available ? '' : 'Spiele sind gerade nicht verfügbar.';
     $('reload-games').hidden = available;
   } catch (error) {
     $('games-info').textContent = error.message;

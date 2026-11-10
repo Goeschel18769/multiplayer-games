@@ -1,0 +1,10 @@
+Use case: stylized-concept.
+Asset type: finished landscape thumbnail for the "4 Gewinnt" tile of a private local multiplayer game hub.
+Primary request: a refined tactile illustration of a classic four-in-a-row game, in the same calm warm paper aesthetic as an editorial cut-paper board game illustration.
+Scene/backdrop: warm ivory handmade paper background, extremely subtle beige and brown watercolor wash, spacious minimal composition.
+Subject: one clearly readable flat rectangular game board with exactly seven vertical columns and six horizontal rows of circular recesses, 42 circles arranged on a regular grid. Board made from softly textured warm beige-brown layered cardstock. Some circular counters fill the bottom one to three positions of several columns, all counters obey gravity with no floating counters. Two counter colors are rich dark umber brown and muted warm terracotta. Upper rows remain mostly empty. No winning stroke.
+Style/medium: restrained editorial watercolor and paper-cut relief, delicate real paper grain, softly imperfect edges, warm shallow shadows. Modern, tactile, calm and uncluttered. Not shiny plastic or a childish cartoon.
+Composition/framing: landscape 3:2, straight-on almost top-down flat board, very slight natural angle only if grid stays readable. Entire board occupies middle 70 percent with ample crop-safe margins.
+Color palette: ivory, oatmeal, tan, warm brown, umber and muted terracotta. No green, blue, yellow or bright primary colors.
+Text: no words, letters, numbers, labels, logos, UI or watermark.
+Constraints: exactly 7 columns and 6 rows, no extra rows or columns, no hands, people, furniture, pencils, floating tokens or props. Opaque full background.

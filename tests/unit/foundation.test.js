@@ -24,7 +24,7 @@ test('Zentrale Fristen und Produktionsregistry', () => {
   assert.equal(SETTINGS.connectionTimeoutMs, 120000);
   const expected = [{ id: 'tic-tac-toe', version: '1', minPlayers: 2, maxPlayers: 2, modes: [
     { id: 'classic', boardSize: 3, winLength: 3 }, { id: 'five', boardSize: 15, winLength: 5 },
-  ] }];
+  ] }, { id: 'connect-four', version: '1', minPlayers: 2, maxPlayers: 2 }];
   assert.deepEqual(registry.list(), expected);
   const publicGames = registry.list();
   publicGames[0].modes[0].id = 'changed';

@@ -3,7 +3,7 @@
 Der seit Phase 3 bestehende Vertrag wird in Phase 6 von der ersten produktiven
 Engine `backend/src/games/tic-tac-toe.js` erfüllt. Die separate Test-Engine liegt
 in `tests/fixtures/engine.js`. `backend/src/games/registry.js` ist die einzige
-produktive Registrierungsstelle und enthält Tic Tac Toe, keine Fixture. Neue
+produktive Registrierungsstelle und enthält Tic Tac Toe und 4 Gewinnt, keine Fixture. Neue
 Spiele werden dort registriert; Raumverwaltung und Transport benötigen keine
 Spiel-Sonderfälle.
 
@@ -92,7 +92,7 @@ und Fehler-Injektion existieren nur im Test-Bundle.
 
 Export: `ticTacToe` aus `backend/src/games/tic-tac-toe.js`. ID `tic-tac-toe`,
 Version `1`, genau zwei Spieler (`minPlayers: 2`, `maxPlayers: 2`). Die produktive
-Registry liefert genau diese Engine. Die kompatible Erweiterung verwendet `{}`
+Registry enthält außerdem 4 Gewinnt. Die kompatible Erweiterung verwendet `{}`
 weiterhin für Classic; exakt `{"mode":"classic"}` und `{"mode":"five"}` sind
 ebenfalls gültig. Andere Werte und zusätzliche Schlüssel sind ungültig.
 Die optionalen öffentlichen `modes`-Metadaten sind
@@ -163,3 +163,20 @@ bleibt `room.status.type === "aborted"`; die Diagnoseoberfläche sperrt dann all
 Brettbuttons. Rematch beginnt mit leerem Brett und neuer Match-ID; der rotierte
 Startspieler erhält jeweils X. Raum-, Transport- und Statistik-Kern bleiben
 unverändert, ebenso die fünf Minuten Leerraumfrist.
+
+
+## Produktive Engine: 4 Gewinnt
+
+Export `connectFour` aus `backend/src/games/connect-four.js`, ID `connect-four`,
+Version `1`, genau zwei Spieler, Config exakt `{}`. Brett 7×6, Schwerkraft,
+mindestens vier gleiche Steine waagrecht, senkrecht oder diagonal; keine
+Sondermodi. Aktion exakt `{kind:'drop',column:0}` mit Index 0–6. Volle Spalten,
+falscher Zug und weitere Felder werden ohne Mutation abgelehnt. Sieg wird vor
+Draw geprüft. Kopierte JSON-Ansichten liefern `rows`, `columns`, `winLength`,
+`board`, `discs`, `yourColor`, `currentPlayerId`, `winningLine` und `lastMove`.
+Der Startspieler erhält `umber`, der andere `clay`. Die vollständige Gewinnreihe
+und der letzte Zellindex kommen vom Server. Das genaue Schema steht im
+[Protokoll](protocol.md#4-gewinnt--aktion-und-spieleransicht).
+
+Raum-/Transport-/Statistik-Kern werden für diese Engine nicht verändert;
+Startrotation, Rematches, Abort, Raumablauf und Outbox bleiben generisch.
