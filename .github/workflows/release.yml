@@ -20,8 +20,6 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: write
-    env:
-      WRANGLER_LOG_PATH: ${{ runner.temp }}/wrangler-release.log
     steps:
       - name: Quellen und Versionstags laden
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -37,6 +35,8 @@ jobs:
       - name: Unit- und Workerd-Integrationstests
         run: npm test
       - name: Backend-Bundle prüfen (kein Deployment)
+        env:
+          WRANGLER_LOG_PATH: ${{ runner.temp }}/wrangler-release.log
         run: npm run check:deploy
       - name: Öffentliche Spielausgabe bauen und verpacken
         run: npm run package:release
