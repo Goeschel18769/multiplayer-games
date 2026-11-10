@@ -1,13 +1,18 @@
 # Bestehender Engine-Vertrag
 
-Stand 23.10.2026. Diese Beschreibung definiert keine neue Schnittstelle. Für ein
+Stand 07.11.2026. Diese Beschreibung dokumentiert den lokalen Vertrag. Für ein
 reines neues Frontend reicht der [API-Vertrag](backend-api.md); eine neue Engine
 ist nur bei einem späteren zusätzlichen Spiel nötig. Produktiv existiert allein
-`tic-tac-toe`, Version `1`, `minPlayers: 2`, `maxPlayers: 2`, Config `{}`.
+`tic-tac-toe`, Version `1`, `minPlayers: 2`, `maxPlayers: 2`. Config `{}` oder
+exakt `{"mode":"classic"}` wählt Classic (3×3, Gewinnlänge 3); exakt
+`{"mode":"five"}` wählt 15×15 mit mindestens fünf in einer Reihe. Keine
+zusätzlichen Config-Schlüssel, Eröffnungs- oder Verbotsregeln. Beide Modi zählen
+Siege gemeinsam nach Namen und behalten die Config bei Rematches.
 
 ## Objekt und Funktionen
 
-Eine Engine ist ein JavaScript-Objekt mit folgenden Pflichtfeldern. Alle
+Eine Engine ist ein JavaScript-Objekt mit den folgenden Feldern (`modes` ist
+optional, die übrigen sind Pflichtfelder). Alle
 Funktionen werden synchron als Methoden der Engine aufgerufen, ohne Promises.
 
 | Feld / Signatur | Vertrag und Rückgabe |
@@ -16,6 +21,7 @@ Funktionen werden synchron als Methoden der Engine aufgerufen, ohne Promises.
 | `version` | Nichtleerer String, derzeit `"1"`. |
 | `minPlayers` | Positive sichere Ganzzahl. |
 | `maxPlayers` | Sichere Ganzzahl ≥ minPlayers; keine allgemeine Grenze auf zwei. |
+| `modes` (optional) | Öffentliche Modusliste; für Tic Tac Toe `[{id:'classic',boardSize:3,winLength:3},{id:'five',boardSize:15,winLength:5}]`. |
 | `validateConfig(config)` | Exakt `true` bei gültiger Konfiguration; `false`, Throw oder Promise führen zu INVALID_CONFIG. |
 | `createInitialState(players, config, context)` | Neuer JSON-Zustand, dessen getStatus exakt running ergibt. |
 | `handleAction(state, playerId, action)` | Neuer JSON-Zustand; ungültige Aktion durch Throw ablehnen. |
@@ -27,7 +33,8 @@ Funktionen werden synchron als Methoden der Engine aufgerufen, ohne Promises.
 `startingPlayerId`. Die IDs kommen vom Server, nie von einer frei behaupteten
 Clientidentität. Config ist ein JSON-Objekt. Die Spiellogik darf Zustand und
 Ansichten passend zum Spiel strukturieren; die Infrastruktur besitzt kein
-universelles Brettschema.
+universelles Brettschema. Die validierte Config wird als öffentliche
+`room.config` schon in der Lobby übertragen und darf keine Geheimnisse enthalten.
 
 Alle Funktionen müssen rein sein und ihre Eingaben unverändert lassen: keine
 Netzwerk-, Storage-, Timer-, Uhr- oder Zufallszugriffe. Die Infrastruktur übergibt
@@ -74,8 +81,13 @@ internen Zustand übertragen**. Auch bei Reconnect gilt dieser Weg. Ein Throw
 oder nicht serialisierbares View-Ergebnis liefert nur INTERNAL_ERROR an diesen
 Empfänger, ohne Rohzustand-Fallback oder Stacktrace. Öffentliche Raummetadaten
 werden unabhängig zusammengestellt. Tic Tac Toes interne Daten enthalten ein
-status-Feld, die tatsächlich gesendete Ansicht dagegen nur die fünf in
-backend-api.md beschriebenen Felder.
+status-Feld, die gesendete Ansicht dagegen die in backend-api.md beschriebenen
+Felder ohne status. Zu board, symbols, yourSymbol, currentPlayerId und winningLine
+kommen mode, boardSize, winLength und lastMove (null oder letzter ganzzahliger
+Zellindex). Alte gespeicherte Classic-Zustände ohne diese Angaben bleiben lesbar;
+ein unbekannter letzter Zug wird als null ausgegeben. Classic-Gewinnlinien
+behalten ihre drei Indizes, 15×15 liefert die vollständige zusammenhängende
+Gewinnlinie mit mindestens fünf Feldern horizontal, vertikal oder diagonal.
 
 ## Später ein Spiel ergänzen
 
@@ -84,7 +96,11 @@ Eine neue reine Engine unter `backend/src/games/` implementieren, importieren un
 der bestehenden Liste `createRegistry([ticTacToe, weitereEngine])` hinzufügen.
 assertEngine prüft Metadaten/Funktionen, doppelte IDs sind unzulässig.
 registry.get(id) liefert die Engine oder UNKNOWN_GAME; list() veröffentlicht nur
-id, version, minPlayers, maxPlayers über GET /api/games. Neue Regeln, Aktionen,
+id, version, minPlayers, maxPlayers und gegebenenfalls modes über GET /api/games.
+Die Moduserweiterung von Tic Tac Toe bleibt unter derselben ID und Version;
+ältere Backends ohne modes werden vom Frontend als Classic-only behandelt.
+15×15 benötigt die neue Backend-Version, ein Deployment ist nicht Teil dieses
+Pakets. Neue Regeln, Aktionen,
 Config, Zustand und gefilterte Ansichten gehören in die neue Engine und ihre
 Tests. Es gibt keinen HTTP-Endpunkt zum Hochladen oder dynamischen Registrieren.
 Die Bereitstellung eines neuen Spiels benötigt später eine gesonderte Backend-
@@ -92,7 +108,8 @@ Veröffentlichung; das ist nicht Teil dieser Übergabe oder einer Designänderun
 Raumverwaltung, Transport, TTL, Rematch und Statistik sollen allgemein bleiben.
 
 Das vorhandene Frontend registriert Darstellungen zentral in
-`frontend/src/games/registry.js`: eine Map von gameId auf `{title, version, mount}`.
+`frontend/src/games/registry.js`: eine Map von gameId auf Darstellungsmetadaten und
+`mount`.
 `supportedGame(game)` prüft ID und Versionsgleichheit. `mount(container, onAction)`
 liefert `{render({snapshot, playerId, canMutate})}`. onAction erhält nur das
 spielabhängige action-Objekt; der allgemeine Transport ergänzt v, type,

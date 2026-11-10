@@ -10,14 +10,15 @@ Technische UUIDs authentifizieren niemanden.
 | Methode und Pfad | Ergebnis |
 | --- | --- |
 | `GET /health` | 200, `{"ok":true}` |
-| `GET /api/games` | 200, Array aus `{id,version,minPlayers,maxPlayers}`; Produktion: genau `tic-tac-toe`, Version `1`, 2–2 Spieler |
+| `GET /api/games` | 200, Array aus `{id,version,minPlayers,maxPlayers}` mit optionalem `modes`; Produktion: genau `tic-tac-toe`, Version `1`, 2–2 Spieler |
 | `GET /api/stats` | 200, Array aus `{nameKey,displayName,wins}` |
+| `PUT /api/stats` | 200, aktualisiertes Statistik-Array; atomare Korrektur, siehe unten |
 | `POST /api/rooms` | 201, neuer Raum, siehe unten |
 | `GET /api/rooms/:code/ws?name=...` | 101 bei WebSocket-Upgrade; sonst 426 |
 | `OPTIONS` auf bekannten Pfaden | 204, ohne Body |
 
 `/` liefert absichtlich 404. Unbekannte Pfade liefern 404; andere Methoden auf
-bekannten Pfaden 405 und `Allow: GET` beziehungsweise `Allow: POST`. Preflight
+bekannten Pfaden 405 und `Allow: GET`, `Allow: GET, PUT` (Statistik) beziehungsweise `Allow: POST`. Preflight
 liefert zusätzlich `Allow` einschließlich OPTIONS. HTTP-Fehler haben immer das
 Schema `{"code":"CODE","message":"neutrale Beschreibung"}`.
 
@@ -25,7 +26,7 @@ Alle HTTP-JSON-Antworten einschließlich Fehler sowie Preflight enthalten:
 
 ```text
 Access-Control-Allow-Origin: *
-Access-Control-Allow-Methods: GET, POST, OPTIONS
+Access-Control-Allow-Methods: GET, POST, PUT, OPTIONS
 Access-Control-Allow-Headers: Content-Type
 Cache-Control: no-store
 ```
@@ -57,7 +58,9 @@ Identitätsschlüssel ist die Anzeigeform mit `toLowerCase()`.
 
 Ein aktiver Raum liefert bei erneuter Anlage 409 `ROOM_EXISTS`. Auch parallele
 Anlagen werden im Raum eindeutig entschieden. Fehlendes oder abgelaufenes Ziel
-beim Join liefert `ROOM_NOT_FOUND` und erzeugt keinen Raum. Die normale Konfiguration erlaubt `gameId: "tic-tac-toe"` mit Config `{}`.
+beim Join liefert `ROOM_NOT_FOUND` und erzeugt keinen Raum. Tic Tac Toe erlaubt
+`{}` (Classic), exakt `{"mode":"classic"}` oder exakt `{"mode":"five"}`; weitere
+Config-Felder sind ungültig. Die Config bleibt über Rematches unverändert.
 Die Fixture bleibt ausschließlich in getrennten Testkonfigurationen.
 
 Statistik: Siege absteigend, bei Gleichstand normalisierte Schlüssel aufsteigend
@@ -67,7 +70,32 @@ in SQLite-BINARY-Reihenfolge. Beispiel:
 [{"nameKey":"ben","displayName":"Ben","wins":3}]
 ```
 
-Es gibt keinen öffentlichen Schreib-Endpunkt und kein Echtzeit-Abonnement.
+### Siegestand bearbeiten oder zurücksetzen
+
+`PUT /api/stats`, `Content-Type: application/json`, maximal 16384 Body-Bytes:
+
+```json
+{"scores":[{"displayName":"Ben","wins":4,"expectedWins":3},{"displayName":"Joël","wins":0,"expectedWins":2}]}
+```
+
+Exakt `scores` mit 1–16 Einträgen, jeweils exakt `displayName`, `wins` und
+`expectedWins`. Beide Zahlen müssen nichtnegative sichere Ganzzahlen sein;
+Namensnormalisierung wie beim Beitritt, doppelte normalisierte Namen unzulässig.
+Ein fehlender Statistik-Eintrag entspricht `expectedWins: 0`. Alle Erwartungen
+werden vor allen Änderungen in derselben SQLite-Transaktion geprüft. Ein
+abweichender aktueller Wert ergibt HTTP 409 `STATS_CONFLICT` ohne Teiländerung.
+Erfolg liefert die vollständige neue Liste einschließlich Einträgen mit null
+Siegen; nicht übermittelte Spieler bleiben unverändert. Der Anzeigename entspricht
+dem letzten Sieg oder der letzten Korrektur.
+
+Reset ist eine Korrektur auf `wins: 0`. `processed_matches` bleibt erhalten;
+bereits gezählte Siege erhöhen den Wert bei Wiederholung nicht erneut. Ein noch
+nicht zugestellter Sieg zählt nach seiner Zustellung weiter. Bei unklarer
+Bestätigung zuerst neu lesen, nicht automatisch erneut schreiben.
+
+Der Schreib-Endpunkt ist wie der bestehende Namenszugang bewusst ohne Login
+zugänglich. Es gibt kein Echtzeit-Abonnement. Diese API-Erweiterung ist lokal
+implementiert; ihre öffentliche Verfügbarkeit erfordert ein Backend-Deployment.
 
 ## Clientnachrichten — exakte Schemas
 
@@ -138,6 +166,7 @@ Das exakte Schema von `room`:
 {
   roomCode: string,
   gameId: string,
+  config: object,               // öffentliche, bei Raumanlage validierte Config
   players: [{ playerId: string, displayName: string, ready: boolean, connected: boolean }],
   status: { type: 'lobby' | 'running' | 'draw' | 'aborted' },
           // oder exakt {type:'won', winnerPlayerId:string}
@@ -150,13 +179,13 @@ Das exakte Schema von `room`:
 Beispiel `welcome` in der Lobby (UUIDs hier verkürzt):
 
 ```json
-{"v":1,"type":"welcome","roomInstanceId":"room-uuid","matchId":null,"revision":0,"room":{"roomCode":"JOEL-BEN","gameId":"tic-tac-toe","players":[{"playerId":"p1","displayName":"Ben","ready":false,"connected":true}],"status":{"type":"lobby"},"participants":[],"startingPlayerId":null,"rematchVotes":[]},"view":null,"playerId":"p1","connectionId":"c1","settings":{"emptyRoomTtlMs":300000,"heartbeatIntervalMs":25000,"connectionTimeoutMs":120000,"maxMessageBytes":16384,"maxHttpBodyBytes":16384,"rateWindowMs":10000,"maxMessagesPerWindow":60,"dedupeEntriesPerPlayer":64,"statsRetryBaseMs":1000,"statsRetryMaxMs":60000}}
+{"v":1,"type":"welcome","roomInstanceId":"room-uuid","matchId":null,"revision":0,"room":{"roomCode":"JOEL-BEN","gameId":"tic-tac-toe","players":[{"playerId":"p1","displayName":"Ben","ready":false,"connected":true}],"status":{"type":"lobby"},"participants":[],"startingPlayerId":null,"rematchVotes":[],"config":{}},"view":null,"playerId":"p1","connectionId":"c1","settings":{"emptyRoomTtlMs":300000,"heartbeatIntervalMs":25000,"connectionTimeoutMs":120000,"maxMessageBytes":16384,"maxHttpBodyBytes":16384,"rateWindowMs":10000,"maxMessagesPerWindow":60,"dedupeEntriesPerPlayer":64,"statsRetryBaseMs":1000,"statsRetryMaxMs":60000}}
 ```
 
 Beispiel `state` während einer Partie (Ansicht ist engineabhängig):
 
 ```json
-{"v":1,"type":"state","roomInstanceId":"room-uuid","matchId":"match-uuid","revision":1,"room":{"roomCode":"JOEL-BEN","gameId":"tic-tac-toe","players":[{"playerId":"p1","displayName":"Ben","ready":false,"connected":true},{"playerId":"p2","displayName":"Joel","ready":false,"connected":true}],"status":{"type":"running"},"participants":["p1","p2"],"startingPlayerId":"p1","rematchVotes":[]},"view":{"board":["X",null,null,null,null,null,null,null,null],"symbols":[{"playerId":"p1","symbol":"X"},{"playerId":"p2","symbol":"O"}],"yourSymbol":"X","currentPlayerId":"p2","winningLine":null}}
+{"v":1,"type":"state","roomInstanceId":"room-uuid","matchId":"match-uuid","revision":1,"room":{"roomCode":"JOEL-BEN","gameId":"tic-tac-toe","players":[{"playerId":"p1","displayName":"Ben","ready":false,"connected":true},{"playerId":"p2","displayName":"Joel","ready":false,"connected":true}],"status":{"type":"running"},"participants":["p1","p2"],"startingPlayerId":"p1","rematchVotes":[],"config":{}},"view":{"mode":"classic","boardSize":3,"winLength":3,"lastMove":0,"board":["X",null,null,null,null,null,null,null,null],"symbols":[{"playerId":"p1","symbol":"X"},{"playerId":"p2","symbol":"O"}],"yourSymbol":"X","currentPlayerId":"p2","winningLine":null}}
 ```
 
 `ack` fügt ausschließlich `requestId` hinzu. `pong` hat nur die gemeinsamen Felder.
@@ -230,13 +259,33 @@ keinen neuen HTTP-Status.
 `GET /api/games` liefert in der normalen Konfiguration:
 
 ```json
-[{"id":"tic-tac-toe","version":"1","minPlayers":2,"maxPlayers":2}]
+[{"id":"tic-tac-toe","version":"1","minPlayers":2,"maxPlayers":2,"modes":[{"id":"classic","boardSize":3,"winLength":3},{"id":"five","boardSize":15,"winLength":5}]}]
 ```
 
-Raumanlage: `{"roomCode":"JOEL-BEN","gameId":"tic-tac-toe","config":{}}`.
+Die Moduserweiterung bleibt bei derselben ID, Version `1` und Protokoll v1.
+`modes` ist eine optionale öffentliche Fähigkeit der Engine; ältere Backends
+liefern diese Liste nicht. Das Frontend bietet dann nur Classic an.
+
+Raumanlage für Classic mit `{}` oder `{"mode":"classic"}`, für Fünf in einer
+Reihe mit `{"mode":"five"}`. Das Config-Objekt darf keine weiteren Schlüssel
+enthalten. Beispiel:
+
+```json
+{"roomCode":"BEN-JOEL-TTT-15","gameId":"tic-tac-toe","config":{"mode":"five"}}
+```
+
+Classic spielt auf 3×3 mit drei gleichen Zeichen. Fünf in einer Reihe spielt
+auf 15×15 mit mindestens fünf gleichen Zeichen horizontal, vertikal oder entlang
+beider Diagonalen. Keine besonderen Eröffnungs- oder Verbotsregeln. Bei vollem
+Brett ohne Sieg gilt Unentschieden; Siegprüfung hat Vorrang. Die Config ist im
+öffentlichen `room.config` auch vor Partiestart sichtbar und bleibt beim Rematch
+erhalten. Das ist keine Übertragung interner Engine-Zustände; Config darf keine
+Geheimnisse enthalten.
+
 Der generische v1-Transport erhält keinen neuen Nachrichtentyp. Das exakte
-`action`-Objekt ist `{"kind":"place","cell":0}`; Zellindex ganzzahlig 0–8,
-keine zusätzlichen Felder. Vollständige Clientnachricht:
+`action`-Objekt ist `{"kind":"place","cell":0}`; Zellindex ganzzahlig 0–8
+für Classic oder 0–224 für 15×15, keine zusätzlichen Felder.
+Vollständige Clientnachricht:
 
 ```json
 {"v":1,"type":"action","requestId":"ttt-1","matchId":"match-uuid","expectedRevision":0,"action":{"kind":"place","cell":0}}
@@ -250,17 +299,28 @@ Indizes zeilenweise:
 6 7 8
 ```
 
-`welcome.view` und `state.view` enthalten nach Partiestart exakt:
+Bei 15×15 ist der Index `Zeile × 15 + Spalte` (beide ab null). `welcome.view`
+und `state.view` enthalten nach Partiestart die bisherigen Felder und zusätzlich
+`mode`, `boardSize`, `winLength` und `lastMove`, hier Classic nach dem ersten Zug:
 
 ```json
-{"board":["X",null,null,null,null,null,null,null,null],"symbols":[{"playerId":"p1","symbol":"X"},{"playerId":"p2","symbol":"O"}],"yourSymbol":"X","currentPlayerId":"p2","winningLine":null}
+{"mode":"classic","boardSize":3,"winLength":3,"lastMove":0,"board":["X",null,null,null,null,null,null,null,null],"symbols":[{"playerId":"p1","symbol":"X"},{"playerId":"p2","symbol":"O"}],"yourSymbol":"X","currentPlayerId":"p2","winningLine":null}
 ```
+
+`mode` ist `classic` oder `five`, `boardSize` 3 oder 15, `winLength` 3 oder 5.
+Das zeilenweise Brett enthält entsprechend 9 oder 225 Felder. `lastMove` ist
+der letzte ganzzahlige Zellindex oder `null` vor dem ersten Zug beziehungsweise
+bei alten Zuständen ohne bekannte letzte Aktion. Alte persistierte Classic-
+Zustände ohne die neuen Felder bleiben unterstützt. Ein Frontend kann alte
+Classic-Antworten ohne `room.config` und neue Ansichtsangaben weiterhin lesen.
 
 In der Lobby bleibt `view` `null`. Brettwerte sind ausschließlich `null`, `X`
 oder `O`. `symbols` ordnet X und O den Teilnehmer-IDs zu; Namen stehen in
 `room.players`. `yourSymbol` gilt für den Empfänger. `currentPlayerId` ist der
 nächste Zugspieler oder nach regulärem Ende `null`. Bei Sieg enthält
-`winningLine` die drei Feldindizes (beispielsweise `[0,1,2]`), sonst `null`.
+`winningLine` bei Classic die drei Feldindizes (beispielsweise `[0,1,2]`). Bei
+15×15 ist es die vollständige zusammenhängende Gewinnlinie von mindestens fünf
+Feldindizes; sonst `null`.
 
 Falscher Zugspieler, unbekannter Spieler, belegtes Feld und ungültige
 Aktionsstruktur werden als `INVALID_ACTION` abgelehnt. Revision und Brett
@@ -273,6 +333,13 @@ Abbruch bleibt die Engine-Ansicht intern unverändert, aber `room.status.type`
 ist `aborted`. Der Client darf dann trotz gesetzter `currentPlayerId` keinen
 Zug mehr senden. Reguläre Siege werden über die bestehende Statistik-Outbox
 einmalig gezählt, Draw und Abort nicht.
+
+Der normale Hub fragt bei jedem Kachelaufruf nach dem Modus und verwendet
+`BEN-JOEL-TTT` für Classic beziehungsweise `BEN-JOEL-TTT-15` für 15×15.
+Manuelle Raumanlage verwendet den gewählten Modus, Beitritt den tatsächlichen
+Servermodus; Reconnect erstellt keinen Raum neu. Beide Modi teilen dieselbe
+globale Namensstatistik. Die 15×15-Erweiterung benötigt ein Backend-Deployment;
+ein lokaler Frontend-Build veröffentlicht sie nicht.
 
 ## Eigenständige Übergabe — Phase 8
 

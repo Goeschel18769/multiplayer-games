@@ -13,6 +13,7 @@ Spiel-Sonderfälle.
   version: '1',            // nichtleere Zeichenkette
   minPlayers: 2,           // positive sichere Ganzzahl
   maxPlayers: 4,           // sichere Ganzzahl >= minPlayers
+  modes: [{ id, boardSize, winLength }], // optional: öffentliche Modusmetadaten
   validateConfig(config), // exakt true für gültige Config, sonst false/throw
   createInitialState(players, config, context), // JSON-Zustand
   handleAction(state, playerId, action),        // neuer JSON-Zustand oder throw
@@ -87,31 +88,45 @@ Unentschieden und Abbruch. Diese Steueraktionen, die deterministische Startwahl
 und Fehler-Injektion existieren nur im Test-Bundle.
 
 
-## Produktive Engine: Tic Tac Toe 3 × 3 — Phase 6
+## Produktive Engine: Tic Tac Toe
 
 Export: `ticTacToe` aus `backend/src/games/tic-tac-toe.js`. ID `tic-tac-toe`,
-Version `1`, genau zwei Spieler (`minPlayers: 2`, `maxPlayers: 2`). Nur die leere
-Config `{}` ist gültig. Die produktive Registry liefert genau diese Engine.
+Version `1`, genau zwei Spieler (`minPlayers: 2`, `maxPlayers: 2`). Die produktive
+Registry liefert genau diese Engine. Die kompatible Erweiterung verwendet `{}`
+weiterhin für Classic; exakt `{"mode":"classic"}` und `{"mode":"five"}` sind
+ebenfalls gültig. Andere Werte und zusätzliche Schlüssel sind ungültig.
+Die optionalen öffentlichen `modes`-Metadaten sind
+`[{id:'classic',boardSize:3,winLength:3},{id:'five',boardSize:15,winLength:5}]`.
+Die validierte Config wird öffentlich in `room.config` übertragen, schon in der
+Lobby; sie darf keine Geheimnisse enthalten und bleibt bei Rematches erhalten.
 
-Das Brett ist ein Array aus neun Feldern, zeilenweise mit Indizes 0–8.
+Classic verwendet ein Array aus neun Feldern (3×3), Fünf in einer Reihe eines
+aus 225 Feldern (15×15), zeilenweise mit Indizes 0–8 beziehungsweise 0–224.
 Leere Felder sind `null`, belegte `"X"` oder `"O"`. Der durch die Infrastruktur
 bestimmte `context.startingPlayerId` erhält X und beginnt; der andere Teilnehmer
 spielt O. Die Engine wählt weder zufällig noch anhand einer Uhr einen Startspieler.
 
 Exakte Engine-Aktion: `{"kind":"place","cell":0}`. Ein Zug setzt genau ein
 leeres Feld und wechselt den Spieler, solange die Partie läuft. Falsche/zusätzliche
-Felder, unbekannter Aktionstyp, nicht ganzzahliger oder außerhalb 0–8 liegender
+Felder, unbekannter Aktionstyp, nicht ganzzahliger oder außerhalb des Bretts liegender
 Index, unbekannter Spieler, falscher Zugspieler, belegtes Feld und Aktionen nach
 Partieende werden ohne Zustandsänderung abgelehnt (`INVALID_ACTION` durch die
 Infrastruktur, nach abgeschlossenem Raumstatus `MATCH_NOT_RUNNING`).
 
-Alle acht Reihen, Spalten und Diagonalen werden geprüft. Drei gleiche Zeichen
-gewinnen; erst danach wird ein volles Brett als Unentschieden gewertet. Deshalb
-kann auch der neunte Zug noch gewinnen. `getStatus` liefert exakt `running`,
+Classic prüft die acht Reihen, Spalten und Diagonalen; drei gleiche Zeichen
+gewinnen. Auf 15×15 gewinnt eine zusammenhängende Folge von mindestens fünf
+gleichen Zeichen horizontal, vertikal oder entlang beider Diagonalen. Es gibt
+keine besonderen Eröffnungs- oder Verbotsregeln. Erst nach der Siegprüfung wird
+ein volles Brett als Unentschieden gewertet, auch der letzte freie Zug kann also
+gewinnen. `getStatus` liefert exakt `running`,
 `won` mit Gewinner-ID oder `draw` im oben beschriebenen Schema. Es gibt keine
 Statistikaufrufe in der Engine; ein Sieg läuft durch die bestehende Outbox.
 
-Interner Zustand: `{board,symbols,currentPlayerId,winningLine,status}`. Jede
+Interner Zustand enthält die bisherigen Felder
+`{board,symbols,currentPlayerId,winningLine,status}` und die Modus-/Brettangaben
+`mode`, `boardSize`, `winLength`, `lastMove`. Alte persistierte Classic-Zustände
+ohne diese Ergänzungen bleiben lesbar; unbekannter letzter Zug erscheint als
+`null`. Jede
 Funktion lässt Eingaben unverändert. Zurückgegebene Arrays und Objekte werden
 kopiert; State und Ansichten sind JSON-Daten. Netzwerk, Storage, Datum und Zufall
 gehören nicht zu dieser Engine.
@@ -120,6 +135,10 @@ Exakte Spieleransicht:
 
 ```json
 {
+  "mode": "classic",
+  "boardSize": 3,
+  "winLength": 3,
+  "lastMove": null,
   "board": [null, null, null, null, null, null, null, null, null],
   "symbols": [{"playerId":"p1","symbol":"X"},{"playerId":"p2","symbol":"O"}],
   "yourSymbol": "X",
@@ -131,8 +150,11 @@ Exakte Spieleransicht:
 `symbols` ist in der Reihenfolge X, O. Anzeigenamen kommen aus öffentlichen
 Raummetadaten und werden nicht in der Engine dupliziert. Beide Spieler sehen das
 öffentliche Brett, aber `yourSymbol` gehört jeweils zum Empfänger. Unbekannte
-Spieler-IDs erhalten keine Ansicht. Bei Sieg enthält `winningLine` die drei
-Feldindizes, sonst `null`. Nach regulärem Sieg oder Unentschieden ist
+Spieler-IDs erhalten keine Ansicht. `lastMove` ist `null` oder der letzte
+ganzzahlige Zellindex. Bei Sieg enthält `winningLine` für Classic die bisherigen
+drei Feldindizes in unveränderter Reihenfolge, für 15×15 die vollständige
+zusammenhängende Gewinnlinie mit mindestens fünf Indizes; sonst `null`.
+Nach regulärem Sieg oder Unentschieden ist
 `currentPlayerId` `null`.
 
 Ein Infrastruktur-Abbruch schreibt den Engine-Zustand nicht um. Deshalb kann

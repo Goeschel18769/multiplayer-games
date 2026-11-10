@@ -3,7 +3,7 @@ import { AppError, safeError, fail } from './errors.js';
 
 export const CORS = Object.freeze({
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type',
   'Cache-Control': 'no-store',
 });

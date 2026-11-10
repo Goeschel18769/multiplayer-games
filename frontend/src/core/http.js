@@ -15,7 +15,11 @@ export function createApi(config, fetchImpl = globalThis.fetch) {
         ...options, credentials: 'omit', cache: 'no-store', signal: controller.signal,
       });
       const result = await response.json();
-      if (!response.ok) throw new Error(result.message || 'Die Anfrage wurde abgelehnt.');
+      if (!response.ok) {
+        const error = new Error(result.message || 'Die Anfrage wurde abgelehnt.');
+        error.code = result.code;
+        throw error;
+      }
       return result;
     } catch (error) {
       if (error.name === 'AbortError') throw new Error('Der Server antwortet nicht. Bitte erneut versuchen.');
@@ -26,9 +30,13 @@ export function createApi(config, fetchImpl = globalThis.fetch) {
   return Object.freeze({
     games: () => request('/api/games'),
     stats: () => request('/api/stats'),
-    createRoom: (roomCode, gameId) => request('/api/rooms', {
+    setStats: scores => request('/api/stats', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ scores }),
+    }),
+    createRoom: (roomCode, gameId, config = {}) => request('/api/rooms', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ roomCode, gameId, config: {} }),
+      body: JSON.stringify({ roomCode, gameId, config }),
     }),
   });
 }

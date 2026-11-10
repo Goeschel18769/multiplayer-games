@@ -17,6 +17,7 @@ export async function buildFrontend({ localTest = false } = {}) {
     absWorkingDir: root,
     entryPoints: ['frontend/src/app.js'],
     bundle: true, platform: 'browser', format: 'iife', splitting: false,
+    loader: { '.png': 'dataurl' },
     outfile: 'release/app.js', target: ['es2020'],
     metafile: true, sourcemap: false, legalComments: 'none',
     plugins: localTest ? [{

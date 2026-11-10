@@ -10,7 +10,8 @@
     "test:integration": "node --test --test-concurrency=1 tests/integration/*.test.js",
     "check:deploy": "wrangler deploy --dry-run --config backend/wrangler.jsonc",
     "dev:manual": "wrangler dev --local --ip 127.0.0.1 --port 8788 --persist-to .wrangler/manual --config tests/manual/wrangler.jsonc",
-    "build": "node scripts/build-frontend.mjs"
+    "build": "node scripts/build-frontend.mjs",
+    "package:release": "node scripts/package-release.mjs"
   },
   "keywords": [],
   "author": "",

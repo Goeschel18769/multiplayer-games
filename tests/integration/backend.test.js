@@ -100,12 +100,12 @@ test('HTTP, Healthcheck, CORS, Methoden, Body-Bytes und unbekannte Spiele', asyn
   assert.deepEqual(await health.json(), { ok: true });
   const root = await request('/'); assert.equal(root.status, 404);
   assert.equal((await root.json()).code, 'NOT_FOUND');
-  for (const [path, method] of [['/health', 'GET'], ['/api/games', 'GET'], ['/api/stats', 'GET'], ['/api/rooms', 'POST']]) {
+  for (const [path, method] of [['/health', 'GET'], ['/api/games', 'GET'], ['/api/stats', 'GET, PUT'], ['/api/rooms', 'POST']]) {
     const preflight = await request(path, { method: 'OPTIONS', headers: { Origin: 'null' } });
     assert.equal(preflight.status, 204);
     assert.equal(preflight.headers.get('access-control-allow-origin'), '*');
-    assert.equal(preflight.headers.get('access-control-allow-methods'), 'GET, POST, OPTIONS');
-    const wrong = await request(path, { method: method === 'GET' ? 'POST' : 'GET' });
+    assert.equal(preflight.headers.get('access-control-allow-methods'), 'GET, POST, PUT, OPTIONS');
+    const wrong = await request(path, { method: method.startsWith('GET') ? 'POST' : 'GET' });
     assert.equal(wrong.status, 405); assert.equal(wrong.headers.get('allow'), method);
     assert.equal(wrong.headers.get('access-control-allow-origin'), '*');
     assert.equal(wrong.headers.get('cache-control'), 'no-store');
@@ -310,7 +310,11 @@ test('Unentschieden, Abbruch, Disconnect und Löschung erzeugen keinen Sieg', as
 
 test('Produktionsbundle: Tic Tac Toe registriert, Fixture und Test-RPCs nicht aktiviert', async () => {
   const worker = await mf.getWorker('phase3-production');
-  assert.deepEqual(await (await worker.fetch('http://localhost/api/games')).json(), [{ id: 'tic-tac-toe', version: '1', minPlayers: 2, maxPlayers: 2 }]);
+  assert.deepEqual(await (await worker.fetch('http://localhost/api/games')).json(), [
+    { id: 'tic-tac-toe', version: '1', minPlayers: 2, maxPlayers: 2, modes: [
+      { id: 'classic', boardSize: 3, winLength: 3 }, { id: 'five', boardSize: 15, winLength: 5 },
+    ] },
+  ]);
   assert.deepEqual(await (await worker.fetch('http://localhost/health')).json(), { ok: true });
   const response = await worker.fetch('http://localhost/api/rooms', { method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -514,4 +518,174 @@ test('Produktives Tic Tac Toe: Züge, Reconnect, Sieg genau einmal, Rematch, Dra
   assert.equal((await currentClient().command('action', { matchId: state.matchId, expectedRevision: state.revision, action: { kind: 'place', cell: 0 } })).code, 'MATCH_NOT_RUNNING');
   assert.deepEqual(await readStats(), wins);
   for (const c of clients) c.ws.close(1000, 'Done');
+});
+
+test('Produktives Tic Tac Toe 15×15: öffentliche Modi, eigener Raum, Reconnect, Sieg und Rematch', async () => {
+  const fetcher = (path, options) => productionMf.dispatchFetch(`http://localhost${path}`, options);
+  const readStats = async () => (await fetcher('/api/stats')).json();
+  const createGame = async config => {
+    const roomCode = `TTT-MODE-${++sequence}`;
+    const response = await fetcher('/api/rooms', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ roomCode, gameId: 'tic-tac-toe', config }),
+    });
+    assert.equal(response.status, 201);
+    return { roomCode, config, clients: [], state: null };
+  };
+  const [five, classic] = await Promise.all([createGame({ mode: 'five' }), createGame({})]);
+  const names = [`FiveBen-${++sequence}`, `FiveJoel-${++sequence}`];
+  async function synchronized(game, ack) {
+    const states = await Promise.all(game.clients.map(c => c.next(m => m.type === 'state' && m.matchId === ack.matchId && m.revision === ack.revision)));
+    assert.deepEqual(states[0].room, states[1].room);
+    assert.deepEqual(states[0].view.board, states[1].view.board);
+    assert.notEqual(states[0].view.yourSymbol, states[1].view.yourSymbol);
+    assert.deepEqual(states[0].room.config, game.config);
+    game.state = states[0];
+  }
+  for (const game of [five, classic]) {
+    for (const name of names) {
+      const c = await join(game.roomCode, name, fetcher);
+      assert.deepEqual(c.welcome.room.config, game.config);
+      assert.equal(c.welcome.view, null);
+      game.clients.push(c);
+    }
+    for (const c of game.clients) assert.equal((await c.command('ready', { ready: true })).type, 'ack');
+    const started = await game.clients[0].command('start');
+    assert.equal(started.type, 'ack');
+    await synchronized(game, started);
+  }
+  assert.equal(five.state.view.mode, 'five');
+  assert.equal(five.state.view.boardSize, 15); assert.equal(five.state.view.winLength, 5);
+  assert.deepEqual(five.state.view.board, Array(225).fill(null));
+  assert.equal(five.state.view.lastMove, null);
+  assert.equal(classic.state.view.mode, 'classic');
+  assert.deepEqual(classic.state.view.board, Array(9).fill(null));
+  const classicStart = structuredClone(classic.state);
+  const startingPlayerId = five.state.room.startingPlayerId;
+  const currentClient = () => five.clients.find(c => c.welcome.playerId === five.state.view.currentPlayerId);
+  async function place(cell) {
+    const ack = await currentClient().command('action', {
+      matchId: five.state.matchId, expectedRevision: five.state.revision, action: { kind: 'place', cell },
+    });
+    assert.equal(ack.type, 'ack');
+    await synchronized(five, ack);
+    assert.equal(five.state.view.lastMove, cell);
+  }
+  assert.equal((await currentClient().command('action', {
+    matchId: five.state.matchId, expectedRevision: 0, action: { kind: 'place', cell: 225 },
+  })).code, 'INVALID_ACTION');
+  for (const cell of [96, 0, 112, 2]) await place(cell);
+
+  const old = five.clients[0];
+  old.ws.close(1000, 'Mode reconnect test');
+  five.clients[0] = await join(five.roomCode, names[0], fetcher);
+  assert.equal(five.clients[0].welcome.playerId, old.welcome.playerId);
+  assert.equal(five.clients[0].welcome.matchId, five.state.matchId);
+  assert.equal(five.clients[0].welcome.revision, 4);
+  assert.deepEqual(five.clients[0].welcome.room.config, { mode: 'five' });
+  assert.deepEqual(five.clients[0].welcome.view.board, five.state.view.board);
+  assert.equal(five.clients[0].welcome.view.mode, 'five');
+  assert.equal(five.clients[0].welcome.view.lastMove, 2);
+  for (const cell of [128, 30, 144, 32]) await place(cell);
+
+  const finisher = currentClient();
+  const finalMove = { v: 1, type: 'action', requestId: 'five-finish-once',
+    matchId: five.state.matchId, expectedRevision: five.state.revision, action: { kind: 'place', cell: 160 } };
+  finisher.send(finalMove);
+  const finished = await finisher.next(m => m.requestId === finalMove.requestId);
+  assert.equal(finished.type, 'ack');
+  await synchronized(five, finished);
+  assert.deepEqual(five.state.room.status, { type: 'won', winnerPlayerId: startingPlayerId });
+  assert.deepEqual(five.state.view.winningLine, [96, 112, 128, 144, 160]);
+  assert.equal(five.state.view.currentPlayerId, null);
+  const winner = five.state.room.players.find(p => p.playerId === startingPlayerId);
+  const wins = await eventually(readStats, rows => rows.find(row => row.nameKey === winner.displayName.toLowerCase())?.wins === 1);
+  finisher.send(finalMove);
+  assert.deepEqual(await finisher.next(m => m.requestId === finalMove.requestId), finished);
+  assert.deepEqual(await readStats(), wins);
+  assert.equal((await finisher.command('action', {
+    matchId: five.state.matchId, expectedRevision: five.state.revision, action: { kind: 'place', cell: 224 },
+  })).code, 'MATCH_NOT_RUNNING');
+
+  const previousMatchId = five.state.matchId;
+  let rematch;
+  for (const c of five.clients) {
+    rematch = await c.command('rematch', { matchId: previousMatchId });
+    assert.equal(rematch.type, 'ack');
+  }
+  assert.notEqual(rematch.matchId, previousMatchId);
+  await synchronized(five, rematch);
+  assert.deepEqual(five.state.room.config, { mode: 'five' });
+  assert.equal(five.state.view.mode, 'five');
+  assert.equal(five.state.view.boardSize, 15); assert.equal(five.state.view.winLength, 5);
+  assert.deepEqual(five.state.view.board, Array(225).fill(null));
+  assert.equal(five.state.view.lastMove, null);
+  assert.notEqual(five.state.room.startingPlayerId, startingPlayerId);
+  assert.equal(five.state.revision, 0);
+
+  // Derselbe Spielername kann gleichzeitig in der getrennten klassischen Partie spielen.
+  const classicOld = classic.clients[0];
+  classicOld.ws.close(1000, 'Classic room check');
+  classic.clients[0] = await join(classic.roomCode, names[0], fetcher);
+  const unchanged = classic.clients[0].welcome;
+  assert.equal(unchanged.matchId, classicStart.matchId);
+  assert.equal(unchanged.revision, 0);
+  assert.deepEqual(unchanged.room.config, {});
+  assert.equal(unchanged.view.mode, 'classic');
+  assert.deepEqual(unchanged.view.board, Array(9).fill(null));
+  assert.deepEqual(await readStats(), wins);
+  for (const game of [five, classic]) for (const c of game.clients) c.ws.close(1000, 'Done');
+});
+
+test('Siegestand per HTTP: atomare Korrektur, Konflikte, Reset ohne erneutes Zählen alter Siege', async () => {
+  const update = scores => request('/api/stats', {
+    method: 'PUT', headers: { 'Content-Type': 'application/json', Origin: 'null' }, body: JSON.stringify({ scores }),
+  });
+  const ben = { displayName: 'Edit Ben', nameKey: 'edit ben' };
+  const joel = { displayName: 'Edit Joël', nameKey: 'edit joël' };
+  await stats.recordWin({ matchId: 'hub-edit-old-win', ...ben });
+  const corrected = await update([
+    { displayName: ben.displayName, wins: 6, expectedWins: 1 },
+    { displayName: joel.displayName, wins: 3, expectedWins: 0 },
+  ]);
+  assert.equal(corrected.status, 200);
+  assert.equal(corrected.headers.get('access-control-allow-origin'), '*');
+  assert.equal((await corrected.json()).find(row => row.nameKey === joel.nameKey).wins, 3);
+  // Der zweite Wert ist veraltet: auch die erste Änderung muss vollständig ausbleiben.
+  const conflict = await update([
+    { displayName: ben.displayName, wins: 99, expectedWins: 6 },
+    { displayName: joel.displayName, wins: 99, expectedWins: 0 },
+  ]);
+  assert.equal(conflict.status, 409);
+  assert.equal((await conflict.json()).code, 'STATS_CONFLICT');
+  assert.equal((await stats.list()).find(row => row.nameKey === ben.nameKey).wins, 6);
+  // Zwei Editoren mit derselben Basis: genau eine Änderung gewinnt.
+  const concurrent = await Promise.all([11, 12].map(wins => update([{ displayName: ben.displayName, wins, expectedWins: 6 }])));
+  assert.deepEqual(concurrent.map(response => response.status).sort(), [200, 409]);
+  const current = (await stats.list()).find(row => row.nameKey === ben.nameKey).wins;
+  const reset = await update([{ displayName: ben.displayName, wins: 0, expectedWins: current }]);
+  assert.equal(reset.status, 200);
+  await stats.recordWin({ matchId: 'hub-edit-old-win', ...ben });
+  assert.equal((await stats.list()).find(row => row.nameKey === ben.nameKey).wins, 0);
+  await stats.recordWin({ matchId: 'hub-edit-new-win', ...ben });
+  const stale = await update([{ displayName: ben.displayName, wins: 5, expectedWins: 0 }]);
+  assert.equal(stale.status, 409);
+  assert.equal((await (await request('/api/stats')).json()).find(row => row.nameKey === ben.nameKey).wins, 1);
+});
+
+test('Siegestand per HTTP: strikte Validierung, Body-Limit und PUT-Preflight', async () => {
+  const row = { displayName: 'Validation Ben', wins: 0, expectedWins: 0 };
+  for (const body of [null, [], {}, { scores: [] }, { scores: Array(17).fill(row) },
+    { scores: [row, { ...row, displayName: 'VALIDATION BEN' }] },
+    ...[-1, 1.5, '3', Number.MAX_SAFE_INTEGER + 1].map(wins => ({ scores: [{ ...row, wins }] })),
+    { scores: [{ ...row, expectedWins: -1 }] }, { scores: [{ ...row, displayName: '<script>' }] },
+    { scores: [{ ...row, extra: true }] }, { scores: [row], extra: true }]) {
+    const response = await request('/api/stats', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    assert.equal(response.status, 400);
+  }
+  const oversized = await request('/api/stats', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ scores: ['é'.repeat(9000)] }) });
+  assert.equal(oversized.status, 413);
+  const preflight = await request('/api/stats', { method: 'OPTIONS', headers: { Origin: 'null', 'Access-Control-Request-Method': 'PUT' } });
+  assert.equal(preflight.status, 204);
+  assert.match(preflight.headers.get('access-control-allow-methods'), /PUT/);
 });

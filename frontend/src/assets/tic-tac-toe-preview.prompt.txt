@@ -1,0 +1,10 @@
+Use case: stylized-concept.
+Asset type: finished landscape thumbnail for the Tic Tac Toe tile of a private locally opened game hub.
+Primary request: a refined tactile paper illustration of a Tic Tac Toe board, matching a warm modern paper-like interface.
+Scene/backdrop: warm ivory textured paper with extremely soft diffuse sage watercolor wash, minimal empty surroundings.
+Subject: one clean classic three by three board made from exactly two vertical and two horizontal softly hand-drawn graphite-sage lines. A few substantial paper-cut X and O marks sit in separate cells: muted forest green X marks, soft terracotta O marks. No winning stroke. The board remains clearly readable at thumbnail size.
+Style/medium: restrained editorial watercolor and cut-paper relief, delicate real paper grain, softly imperfect edges, shallow warm shadows; modern and calm, not a childish cartoon or shiny plastic.
+Composition/framing: landscape about 3:2, almost top-down with only a very slight angle. Keep the whole board centered inside the middle 65 percent with ample margins so it crops safely to a wide card.
+Color palette: ivory, beige, sage green, forest green, muted terracotta and warm brown.
+Text: no words, lettering, numbers, logos, title, UI or watermark. Only X and O game marks.
+Constraints: exactly 3 rows and 3 columns, no extra grid lines, no hands, people, pencils, furniture or additional props, no floating objects outside the board. Opaque full background.

@@ -1,71 +1,119 @@
 <!doctype html>
-<html lang="de">
+<html lang="de" data-theme="light">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>multiplayer-games · Zusammen spielen</title>
+  <meta name="color-scheme" content="light dark">
+  <title>Spiele</title>
   <link rel="stylesheet" href="./style.css">
   <script src="./app.js" defer></script>
 </head>
 <body>
+  <a class="skip-link" href="#main">Zum Inhalt</a>
   <header class="page-header">
-    <a class="brand" href="#start">multiplayer-games</a>
-    <span class="tag">Ein Raum. Eure nächste Runde.</span>
+    <div class="scoreboard-wrap">
+      <div class="scoreboard-panel">
+        <span class="score-caption">SIEGE</span>
+        <div class="scoreboard-line">
+          <button id="scoreboard-player-ben" class="score-name" type="button" data-selected="false" aria-label="Spieler wählen, Ben">Ben<span class="own-marker" aria-hidden="true"></span></button>
+          <button id="scoreboard" class="score-numbers" type="button" aria-label="Siegestand bearbeiten" aria-haspopup="dialog">
+            <strong id="score-ben">—</strong><span class="score-divider" aria-hidden="true">:</span><strong id="score-joel">—</strong>
+          </button>
+          <button id="scoreboard-player-joel" class="score-name" type="button" data-selected="false" aria-label="Spieler wählen, Joël">Joël<span class="own-marker" aria-hidden="true"></span></button>
+        </div>
+      </div>
+      <span id="stats-info" class="stats-status" role="status" aria-live="polite">Wird geladen …</span>
+    </div>
   </header>
-  <main>
-    <div class="intro" id="start">
-      <p class="eyebrow">Zusammen spielen</p>
-      <h1>Kleine Spiele,<br>gute Gesellschaft.</h1>
-      <p>Teile einen Raumcode mit deinen Mitspielern. Gebt eure Namen ein und legt gemeinsam los.</p>
+
+  <div id="theme-drawer" class="theme-drawer" data-open="false">
+    <button id="theme-toggle" class="theme-lip" type="button" aria-label="Darstellung öffnen" aria-expanded="false" aria-controls="theme-options"><span class="lip-grip" aria-hidden="true"></span></button>
+    <div id="theme-options" class="theme-options" role="group" aria-label="Darstellung">
+      <button id="theme-light" class="theme-button" type="button" aria-label="Heller Modus" aria-pressed="true"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg><span>Hell</span></button>
+      <button id="theme-dark" class="theme-button" type="button" aria-label="Dunkler Modus" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 15.5A8.5 8.5 0 0 1 8.5 4 8.5 8.5 0 1 0 20 15.5Z"/></svg><span>Dunkel</span></button>
+      <button id="theme-office" class="theme-button" type="button" aria-label="Büromodus" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="18" height="14" rx="2"/><path d="M8 7V4h8v3M3 12h18m-11 0v3h4v-3"/></svg><span>Büro</span></button>
     </div>
-    <div class="layout">
-      <section class="card entry" aria-labelledby="entry-title">
-        <p class="eyebrow">01 · Euer Treffpunkt</p>
-        <h2 id="entry-title">In einen Raum</h2>
-        <form id="room-form">
-          <label for="player-name">Dein Name</label>
-          <input id="player-name" autocomplete="off" placeholder="Zum Beispiel Joël" required>
-          <label for="room-code">Raumcode</label>
-          <input id="room-code" autocomplete="off" spellcheck="false" placeholder="Zum Beispiel ABENDRUNDE" required>
-          <label for="game-select">Spiel für einen neuen Raum</label>
-          <select id="game-select" disabled><option value="">Spiele werden geladen …</option></select>
-          <p id="games-info" class="hint" role="status">Verfügbare Spiele werden geladen.</p>
-          <div class="stack">
-            <button id="create-room" type="button" class="primary" disabled>Raum erstellen &amp; beitreten</button>
-            <button id="join-room" type="submit">Bestehendem Raum beitreten</button>
-            <button id="reload-games" type="button" class="text-button">Spiele neu laden</button>
-          </div>
-        </form>
-        <p class="hint">Der Name ist dein Spielerplatz. Eine Verbindung mit demselben Namen kann ihn übernehmen.</p>
-      </section>
-      <section class="card play" aria-labelledby="play-title">
-        <div class="room-heading">
-          <div><p id="room-label" class="eyebrow">02 · Die nächste Runde</p><h2 id="play-title">Noch kein Raum geöffnet</h2></div>
-          <span id="connection-badge" class="badge">Nicht verbunden</span>
-        </div>
-        <p id="connection-message" class="notice" role="status" aria-live="polite">Raum erstellen oder einem bestehenden Raum beitreten.</p>
-        <div class="buttons connection-actions">
-          <button id="reconnect" type="button" hidden>Erneut verbinden</button>
-          <button id="leave-room" type="button" hidden>Raum verlassen</button>
-        </div>
-        <p id="match-message" class="match-message" role="status" aria-live="polite">Hier wartet euer Spiel auf euch.</p>
+  </div>
+
+  <main id="main">
+    <section id="hub-view" aria-labelledby="hub-title">
+      <h1 id="hub-title" class="visually-hidden" tabindex="-1">Spiele</h1>
+      <div class="game-shelf">
+        <button id="game-tic-tac-toe" class="game-tile" type="button" disabled data-tilt aria-labelledby="tile-title" aria-describedby="tile-description">
+          <span class="game-preview" aria-hidden="true">
+            <img id="ttt-preview-image" class="game-preview-image" alt="" width="1536" height="1024" decoding="async">
+          </span>
+          <span class="tile-copy">
+            <span class="tile-title" id="tile-title">Tic Tac Toe</span>
+            <span class="game-meta" id="tile-description"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="7" cy="6" r="2.5"/><path d="M2 16v-2a5 5 0 0 1 10 0v2m1-12a2.5 2.5 0 0 1 0 5m2 2a4 4 0 0 1 3 4v1"/></svg>2 Spieler</span>
+            <span class="tile-arrow" aria-hidden="true">↗</span>
+          </span>
+        </button>
+      </div>
+      <div class="hub-status"><p id="games-info" role="status" aria-live="polite">Spiele werden geladen …</p><button id="reload-games" class="text-button" type="button" hidden>Erneut laden</button></div>
+      <p id="hub-message" class="hub-message" role="status" aria-live="polite"></p>
+    </section>
+
+    <section id="play-view" class="play-page" data-mode="classic" aria-labelledby="play-title" hidden>
+      <div class="play-topline">
+        <button id="back-to-hub" class="back-button" type="button"><span aria-hidden="true">←</span> Spiele</button>
+        <div class="play-tools"><span id="connection-badge" class="connection-badge">Nicht verbunden</span><button id="room-toggle" class="room-toggle" type="button" aria-label="Raumoptionen" aria-haspopup="dialog" title="Raumoptionen"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg></button></div>
+      </div>
+      <div class="play-heading"><h1 id="play-title" class="play-title" tabindex="-1">Tic Tac Toe</h1><button id="play-mode" class="play-mode" type="button" aria-haspopup="dialog">3 × 3 · 3 in Reihe</button></div>
+      <div class="play-paper">
+        <p id="connection-message" class="connection-message" role="status" aria-live="polite">Verbindung wird aufgebaut …</p>
+        <div class="connection-actions"><button id="reconnect" type="button" hidden>Erneut verbinden</button></div>
         <ul id="players" class="players" aria-label="Spieler im Raum"></ul>
-        <div id="game-view" class="game-view"><p class="empty">Ein Raumcode bringt euch an denselben Tisch.</p></div>
-        <div class="buttons room-actions">
-          <button id="ready" type="button" disabled>Bereit</button>
-          <button id="start-match" type="button" class="primary" disabled>Partie starten</button>
-          <button id="rematch" type="button" disabled>Rematch zustimmen</button>
-          <button id="abort-match" type="button" class="text-button" disabled>Partie abbrechen</button>
-        </div>
-        <p class="hint leave-note">„Raum verlassen“ trennt deine Verbindung; dein Platz bleibt reserviert. Erst wenn alle getrennt sind, läuft die Fünf-Minuten-Frist für den Raum.</p>
-      </section>
-      <section class="card scores" aria-labelledby="scores-title">
-        <div class="room-heading"><div><p class="eyebrow">Über alle Runden</p><h2 id="scores-title">Die Siegestatistik</h2></div><button id="refresh-stats" type="button">Aktualisieren</button></div>
-        <p id="stats-info" class="hint" role="status" aria-live="polite">Statistik wird geladen …</p>
-        <ol id="scores" class="score-list" aria-label="Globale Siege"></ol>
-      </section>
-    </div>
+        <p id="match-message" class="match-message" role="status" aria-live="polite"></p>
+        <div id="game-view" class="game-view"></div>
+        <div class="room-actions"><button id="ready" type="button" disabled>Bereit</button><button id="start-match" type="button" class="primary" disabled>Starten</button><button id="rematch" type="button" disabled>Noch einmal</button><button id="abort-match" type="button" class="text-button" disabled>Abbrechen</button></div>
+      </div>
+    </section>
   </main>
-  <footer>Eine Internetverbindung ist erforderlich. Name und Raumcode bleiben nur bis zum Neuladen in diesem Fenster erhalten.</footer>
+
+  <dialog id="player-dialog" class="player-dialog" aria-labelledby="player-dialog-title">
+    <div class="dialog-topline"><h2 id="player-dialog-title">Wer spielt?</h2><button id="player-cancel" class="close-button" type="button" aria-label="Schliessen" hidden>×</button></div>
+    <div class="player-options" role="group" aria-labelledby="player-dialog-title">
+      <button id="player-ben" type="button" class="player-option" aria-pressed="false"><span class="avatar avatar-ben" aria-hidden="true">B</span><span>Ben</span><span class="selection-dot" aria-hidden="true"></span></button>
+      <button id="player-joel" type="button" class="player-option" aria-pressed="false"><span class="avatar avatar-joel" aria-hidden="true">J</span><span>Joël</span><span class="selection-dot" aria-hidden="true"></span></button>
+    </div>
+  </dialog>
+
+  <dialog id="mode-dialog" class="mode-dialog" aria-labelledby="mode-dialog-title">
+    <div class="dialog-topline"><h2 id="mode-dialog-title">Tic Tac Toe</h2><button id="close-mode-dialog" class="close-button" type="button" aria-label="Schliessen">×</button></div>
+    <p class="dialog-description">Modus wählen</p>
+    <div class="mode-options">
+      <button id="mode-classic" class="mode-option" type="button">
+        <span class="mode-mini mode-mini-classic" aria-hidden="true"><svg viewBox="0 0 64 64"><path class="mini-lines" d="M24 8v48M40 8v48M8 24h48M8 40h48"/><path class="mini-x" d="m12 12 8 8m0-8-8 8m16 16 8 8m0-8-8 8"/><circle class="mini-o" cx="48" cy="16" r="5"/><circle class="mini-o" cx="16" cy="48" r="5"/></svg></span>
+        <strong>3 × 3</strong><span>3 in einer Reihe</span>
+      </button>
+      <button id="mode-five" class="mode-option" type="button">
+        <span class="mode-mini mode-mini-five" aria-hidden="true"><span class="five-mini-marks"><i></i><i></i><i></i><i></i><i></i></span></span>
+        <strong>15 × 15</strong><span>5 in einer Reihe</span>
+      </button>
+    </div>
+    <p id="mode-info" class="dialog-status" role="status" aria-live="polite"></p>
+  </dialog>
+
+  <dialog id="room-dialog" aria-labelledby="room-dialog-title">
+    <form id="room-form">
+      <div class="dialog-topline"><h2 id="room-dialog-title">Raum</h2><button id="close-room-options" class="close-button" type="button" aria-label="Schliessen">×</button></div>
+      <label class="field-label" for="manual-room-code">Raumcode</label>
+      <input id="manual-room-code" class="room-code-input" type="text" minlength="3" maxlength="32" autocomplete="off" spellcheck="false" required>
+      <p id="manual-room-status" class="dialog-status" role="status" aria-live="polite"></p>
+      <div class="dialog-actions"><button id="create-manual-room" type="button">Erstellen</button><button id="join-manual-room" type="submit" class="primary">Beitreten</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="score-dialog" aria-labelledby="score-dialog-title" aria-describedby="score-dialog-description">
+    <form id="score-form">
+      <div class="dialog-topline"><h2 id="score-dialog-title">Siege</h2><button id="close-scores" class="close-button" type="button" aria-label="Schliessen">×</button></div>
+      <p id="score-dialog-description" class="dialog-description">Gesamtstand über alle Spiele.</p>
+      <div class="score-edit-row"><label for="edit-ben"><span class="small-avatar avatar-ben" aria-hidden="true">B</span>Ben</label><input id="edit-ben" type="number" min="0" max="9007199254740991" step="1" required inputmode="numeric"><button id="reset-ben" type="button" class="text-button">Auf 0</button></div>
+      <div class="score-edit-row"><label for="edit-joel"><span class="small-avatar avatar-joel" aria-hidden="true">J</span>Joël</label><input id="edit-joel" type="number" min="0" max="9007199254740991" step="1" required inputmode="numeric"><button id="reset-joel" type="button" class="text-button">Auf 0</button></div>
+      <p id="score-error" class="dialog-status" role="status" aria-live="polite"></p>
+      <div class="dialog-actions"><button id="refresh-stats" class="text-button" type="button">Neu laden</button><button id="save-scores" type="submit" class="primary">Speichern</button></div>
+    </form>
+  </dialog>
 </body>
 </html>

@@ -11,10 +11,24 @@ frontend-config.example.js und verification.md sowie dieser Startprompt bilden
 die eigenständige technische Übergabe. Lies sie zuerst. Das bestehende Backend
 ist unter https://multiplayer-games.haldimann-joel.workers.dev erreichbar.
 
-Kläre zuerst meine Designwünsche, etwa Stil, Farben, Anordnung und Zielgeräte.
-Lege noch keine konkrete Designrichtung fest. Du darfst die Frontend-Struktur
+Baue auf dem kompakten Spielhub auf: warme Papieroptik, erdige Grün-/Beige-/Brauntöne,
+Hell-, Dunkel- und eigenständiger zurückhaltender Büro-Modus. Kein Seitenname,
+keine Einleitung und keine dauerhafte Spielerwahl im Hub. Ben und Joël werden
+beim ersten Öffnen im Tab per Dialog gewählt; der eigene Name im Score öffnet die Wahl
+erneut. Ein Wechsel im Spiel trennt die Verbindung und führt zum Hub zurück.
+Jeder Klick auf die Kachel öffnet zuerst die Moduswahl: Classic (3×3, drei in einer
+Reihe) oder Fünf in einer Reihe (15×15, mindestens fünf horizontal, vertikal oder
+entlang beider Diagonalen, ohne Eröffnungs- oder Verbotsregeln). Classic verwendet
+BEN-JOEL-TTT, 15×15 BEN-JOEL-TTT-15; derselbe Modus führt beide zusammen, die Modi
+bleiben getrennt. Die Kachel hat eine generierte Bildvorschau im gleichen Stil.
+Der hervorgehobene Score steht oben mittig: dunkle Fläche und helle
+Schrift im Hellmodus, umgekehrt im Dunkelmodus. Zahlen öffnen den Score-Editor;
+der eigene Name ist dezent markiert. Verberge die Darstellungsmodi hinter einer kleinen
+Lasche oben rechts mit Hover-, Fokus- und Tippbedienung. Ergänze dezente Hover-,
+Druck- und Lichteffekte mit Unterstützung für reduzierte Bewegung.
+Kläre weitergehende Designwünsche vor einer neuen Designrichtung. Du darfst die Frontend-Struktur
 frei gestalten und ein separates Repository verwenden. Der dokumentierte
-Backend-Vertrag bleibt erhalten. Aktuell gibt es nur Tic Tac Toe 3 × 3.
+Backend-Vertrag bleibt erhalten. Aktuell gibt es nur Tic Tac Toe in diesen Modi.
 
 Verwende HTML, CSS und Vanilla JavaScript, kein TypeScript. Die Entwicklungsquellen
 sollen ES-Module verwenden. Erzeuge einen eigenständigen Release-Ordner mit
@@ -24,11 +38,15 @@ Chunks oder lokalen fetch-Aufrufe, auch nicht für JSON-Konfiguration. Spieler
 müssen index.html per Doppelklick über file:// starten können, ohne Installation
 oder lokalen Server. Ein Buildwerkzeug für die Entwicklung ist davon getrennt.
 Die App benötigt Internet und spricht über HTTPS/WSS mit dem bestehenden Backend.
+Die PNG-Vorschau wird über esbuild als Data-URL importiert; release/ enthält
+weiterhin genau index.html, app.js und style.css ohne separate Laufzeit-Bilddatei.
 
 Halte öffentliche Konfiguration von Zugangsdaten getrennt. Nutze Protokoll v1
 und welcome.settings, insbesondere für den Heartbeat; erfinde keine eigenen
-verbindlichen Serverfristen. Kein notwendiges localStorage und keine Login- oder
-Sitzungstokens. Namen und Raumcodes können nur im Arbeitsspeicher bleiben.
+verbindlichen Serverfristen. Kein notwendiger Browserspeicher und keine Login-
+oder Sitzungstokens. Merke die Spielerwahl optional im sessionStorage unter
+multiplayer-player für den aktuellen Tab; bei blockiertem Speicher frage nach
+jedem Neuladen erneut. Die aktuelle Raumwahl bleibt im Arbeitsspeicher.
 Der Name ist bewusst übernehmbare Identität. Bei Verbindungsaustausch (4001)
 verständlich informieren und keine automatische Übernahmeschleife starten.
 
@@ -41,16 +59,40 @@ Acks; unklare Aktionen nicht blind erneut senden. Eine manuelle Wiederverbindung
 übernimmt den aktuellen Serverstand. ROOM_FULL, ROOM_LOCKED, Raumablauf und neue
 roomInstanceId müssen im Zustandsmodell berücksichtigt sein.
 
+Nach der Moduswahl nutzt der normale Einstieg Create und nur bei ROOM_EXISTS den
+vorhandenen Raum. Die ID tic-tac-toe und Version "1" bleiben gleich. Config {} oder
+exakt {mode:'classic'} ist Classic, exakt {mode:'five'} ist 15×15; keine weiteren
+Config-Schlüssel. Die optionale modes-Liste aus GET /api/games nennt id,
+boardSize und winLength. Ohne diese Fähigkeit auf älteren Backends nur Classic
+anbieten, keinen lokalen 15×15-Modus vortäuschen.
+In der Spielansicht öffnet room-toggle einen versteckten Raumdialog mit aktuellem
+Code und getrennten Aktionen für Erstellen und Beitreten. Erstellen verwendet
+den gewählten Modus, Beitreten übernimmt den tatsächlichen Servermodus aus der
+öffentlichen room.config, schon in der Lobby. Manuelle Raumwahl gilt nur für
+diese Spielansicht. Der nächste Kacheleinstieg fragt erneut den Modus ab und
+verwendet dessen Standardraum. Reconnect behält den aktuellen Code und wiederholt
+keinen Create-POST; Rematch behält die Raumconfig. Die Statistik zählt beide Modi
+zusammen nach Namen.
+
 Der Server allein entscheidet Regeln, Zugrecht, Gewinner und Statistik.
 Rendere nur die empfangenen individuellen Ansichten; keine Backend-Engine ins
-Frontend kopieren. room.status ist massgeblich, besonders bei aborted. Keine
-lokale Gewinnerberechnung und keine Statistik-Schreibversuche. Statistikfehler
+Frontend kopieren. Die Ansichten ergänzen mode, boardSize, winLength und lastMove
+(null oder letzter ganzzahliger Zellindex). Alte gespeicherte Classic-Zustände
+und Antworten ohne diese Angaben bleiben unterstützt. room.status ist
+massgeblich, besonders bei aborted. Keine
+lokale Gewinnerberechnung. Score-Korrekturen ausschließlich bewusst über
+PUT /api/stats mit expectedWins und atomarer Konfliktbehandlung; kein lokales
+Vortäuschen einer erfolgreichen Speicherung. Die Score-API und die 15×15-
+Erweiterung müssen öffentlich erst deployt werden; fehlende Unterstützung
+verständlich anzeigen. Statistikfehler
 dürfen eine Partie nicht blockieren; verzögerte Siege mit begrenzten erneuten
 Abrufen und manueller Aktualisierung behandeln. Spielauswahl und Darstellung
 modular über gameId/version registrieren, unbekannte Spiele verständlich melden.
 
 Sorge für echte Tastaturbedienung, sichtbaren Fokus, verständliche Beschriftungen,
-zugängliche Statusmeldungen und ein responsives Layout. Rendere Namen und
+zugängliche Statusmeldungen und ein responsives Layout.
+Das 15×15-Brett benötigt einen responsiven Scrollbereich mit ausreichend großen
+Touchfeldern sowie Pfeiltasten und Home/End für die Tastatur. Rendere Namen und
 Servertexte sicher als Text. Prüfe den gebauten, aus dem Projekt herauskopierten
 Ordner mit zwei unabhängigen Browserfenstern. Verwende für automatisierte Siege
 ein lokales Testbackend; verändere nicht ungefragt die öffentliche Statistik.

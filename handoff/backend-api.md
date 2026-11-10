@@ -1,6 +1,6 @@
 # Implementierter Backend-Vertrag v1
 
-Stand 23.10.2026, aus dem lokalen Implementierungsstand abgeleitet. Öffentliche
+Stand 07.11.2026, aus dem lokalen Implementierungsstand abgeleitet. Öffentliche
 Basis-URL: **https://multiplayer-games.haldimann-joel.workers.dev**.
 Alle Beispiele sind illustrative Daten, keine Live-Antworten und keine Zusage
 über bestehende öffentliche Räume oder Zählerstände. Die Beispielpartie am Ende
@@ -11,17 +11,18 @@ ist in sich konsistent. Sie setzt einen freien Raumcode und leere Statistik vora
 | Methode und Pfad | Erfolg / Body | Spezifische Fehler |
 | --- | --- | --- |
 | GET /health | 200, `{"ok":true}` | Interner Fehler 500 möglich. |
-| GET /api/games | 200, Array mit id, version, minPlayers, maxPlayers | 500 |
+| GET /api/games | 200, Array mit id, version, minPlayers, maxPlayers und optional modes | 500 |
 | GET /api/stats | 200, Array mit nameKey, displayName, wins | 500, falls Statistik nicht erreichbar. |
+| PUT /api/stats | 200, aktualisiertes Statistik-Array | 400 Name/Body/Werte, 409 STATS_CONFLICT, 413 Body, 500 |
 | POST /api/rooms | 201, roomCode, roomInstanceId, webSocketPath | 400 Eingabe/Spiel/Config, 413 Body, 409 ROOM_EXISTS, 500 |
 | GET /api/rooms/:code/ws?name=… | 101 WebSocket-Upgrade, kein JSON-Body | 400 Name/Code, 426 ohne Upgrade, 404 ROOM_NOT_FOUND, 409 ROOM_FULL/ROOM_LOCKED, 500 |
-| OPTIONS auf jedem obigen Pfad | 204 ohne Body, Allow mit GET bzw. POST und OPTIONS | Kein Raum-/Name-/Body-Abgleich beim Preflight. |
+| OPTIONS auf jedem obigen Pfad | 204 ohne Body, Allow mit GET, GET/PUT bzw. POST und OPTIONS | Kein Raum-/Name-/Body-Abgleich beim Preflight. |
 
 Pfade sind exakt, ohne abschliessenden Slash. Andere Pfade (auch `/`, eine
 Raumliste oder einzelne Raum-GETs) liefern 404 NOT_FOUND, auch mit OPTIONS.
 Andere Methoden auf bekannten Pfaden liefern 405 METHOD_NOT_ALLOWED und
-`Allow: GET` oder `Allow: POST` ohne OPTIONS. Es gibt keine öffentlichen
-Statistik-Schreib-, Raum-Lösch-, Login-, Sitzungs- oder Debug-Endpunkte.
+`Allow: GET`, `Allow: GET, PUT` (Statistik) oder `Allow: POST` ohne OPTIONS.
+Es gibt keine öffentlichen Raum-Lösch-, Login-, Sitzungs- oder Debug-Endpunkte.
 Queryparameter definieren keine weiteren Endpunkte; beim Join wird name gelesen.
 
 Alle HTTP-JSON-Antworten, auch Fehler, verwenden Content-Type application/json
@@ -29,7 +30,7 @@ und diese Header; OPTIONS enthält dieselben CORS-/Cache-Header:
 
 ```text
 Access-Control-Allow-Origin: *
-Access-Control-Allow-Methods: GET, POST, OPTIONS
+Access-Control-Allow-Methods: GET, POST, PUT, OPTIONS
 Access-Control-Allow-Headers: Content-Type
 Cache-Control: no-store
 ```
@@ -48,8 +49,9 @@ erlaubt), gültiges UTF-8 und JSON mit **exakt** roomCode, gameId und config:
 ```
 
 roomCode muss ein gültiger String sein; gameId ist ein String einer registrierten
-Engine; config ein Objekt, kein Array/null. Tic Tac Toe akzeptiert ausschliesslich
-das leere Objekt. Fehlende/zusätzliche Felder oder ungültiges JSON ergeben
+Engine; config ein Objekt, kein Array/null. Tic Tac Toe akzeptiert `{}` (Classic),
+exakt `{"mode":"classic"}` oder exakt `{"mode":"five"}`, keine zusätzlichen
+Config-Schlüssel. Fehlende/zusätzliche äußere Felder oder ungültiges JSON ergeben
 INVALID_MESSAGE. Die Engine-Prüfung ungültiger Config ergibt INVALID_CONFIG,
 eine unbekannte ID UNKNOWN_GAME. Maximal 16384 tatsächliche Body-Bytes werden
 gelesen, unabhängig von Content-Length. Erstellen verbindet noch keinen Spieler.
@@ -57,13 +59,41 @@ gelesen, unabhängig von Content-Length. Erstellen verbindet noch keinen Spieler
 Spieleliste derzeit:
 
 ```json
-[{"id":"tic-tac-toe","version":"1","minPlayers":2,"maxPlayers":2}]
+[{"id":"tic-tac-toe","version":"1","minPlayers":2,"maxPlayers":2,"modes":[{"id":"classic","boardSize":3,"winLength":3},{"id":"five","boardSize":15,"winLength":5}]}]
 ```
+
+`modes` ist optional. Ein älteres Backend ohne Modusmetadaten wird vom Frontend
+als Classic-only behandelt. ID und Version ändern sich durch diese kompatible
+Erweiterung nicht; für 15×15 muss die neue Backend-Version bereitgestellt werden.
+Diese Änderung führt kein Deployment aus.
 
 Statistik ist ein Array, bei fehlenden Einträgen leer. Jeder Eintrag enthält
 nameKey (normalisierter Namensschlüssel), displayName (Anzeigeform des letzten
-angenommenen Sieges dieses Schlüssels) und wins (positive Ganzzahl). Sortierung:
+angenommenen Sieges oder der letzten Korrektur) und wins (nichtnegative sichere Ganzzahl). Sortierung:
 wins absteigend, dann nameKey aufsteigend nach SQLite COLLATE BINARY.
+
+### Siegestand korrigieren und zurücksetzen
+
+Seit Phase 9 lokal implementiert; öffentliche Verfügbarkeit erfordert das
+Deployment dieser Backend-Version. PUT /api/stats verlangt application/json:
+
+```json
+{"scores":[{"displayName":"Ben","wins":4,"expectedWins":3},{"displayName":"Joël","wins":0,"expectedWins":2}]}
+```
+
+Exakt scores mit 1–16 Einträgen; pro Eintrag exakt displayName, wins und
+expectedWins. Die Werte sind nichtnegative sichere Ganzzahlen, Namen werden wie
+beim Join normalisiert, doppelte nameKeys abgelehnt. Ein bisher fehlender Spieler
+hat 0 Siege. Die API prüft alle expectedWins in derselben SQLite-Transaktion vor
+allen Änderungen. Abweichung: 409 STATS_CONFLICT, keine Teiländerung. Erfolg:
+vollständige neue Statistikliste, nicht genannte Spieler unverändert. Kein Login
+oder Authentifizierungsheader, entsprechend dem bestehenden Namensmodell.
+
+Reset entspricht wins: 0 und löscht keine processed_matches. Wiederholungen
+bereits gezählter Siege zählen nicht erneut; noch nicht zugestellte Siege können
+weiter eintreffen. Nach unklarer Schreibbestätigung zuerst GET statt blindem
+Replay. Der Hub öffnet den Editor über einen Klick auf den Score; Zurücksetzen
+bleibt bis Speichern ein Entwurf.
 
 ### macOS / zsh
 
@@ -269,6 +299,7 @@ room hat exakt diese Felder:
 | Feld | Form |
 | --- | --- |
 | roomCode, gameId | Strings. |
+| config | Öffentliche, bei der Raumanlage validierte Engine-Config; bleibt beim Rematch erhalten. |
 | players | Array von exakt {playerId: String, displayName: String, ready: Boolean, connected: Boolean}. |
 | status | Exakt {type:"lobby"}, {type:"running"}, {type:"draw"}, {type:"aborted"} oder {type:"won",winnerPlayerId: String}. |
 | participants | Array der eingefrorenen playerIds; Lobby []. |
@@ -276,7 +307,10 @@ room hat exakt diese Felder:
 | rematchVotes | Array der bereits zustimmenden playerIds; anfangs []. |
 
 view ist in der Lobby null, sonst ausschliesslich die persönliche Engine-Ansicht.
-room enthält weder Config noch nameKey noch rohen Engine-Zustand.
+room enthält die öffentliche Config auch in der Lobby, aber keinen nameKey und
+keinen rohen Engine-Zustand. Config darf keine Geheimnisse enthalten. Ältere
+Backends ohne room.config und ohne neue Ansichtsangaben können weiterhin als
+Classic verwendet werden.
 Vollständige welcome/state-Beispiele stehen in der Beispielpartie. Weitere
 vollständige Serverframes (hier nach dem ersten Zug dieser Beispielpartie):
 
@@ -360,6 +394,7 @@ message ist ein neutraler deutscher Text, keine Payloads/Stacktraces.
 | METHOD_NOT_ALLOWED | 405 | Methode nicht erlaubt. |
 | UPGRADE_REQUIRED | 426 | WebSocket-Upgrade erforderlich. |
 | RESULT_CONFLICT | 409 | Widersprüchliches Partieergebnis. |
+| STATS_CONFLICT | 409 | Der Siegestand hat sich inzwischen geändert. Bitte neu laden und erneut bearbeiten. |
 
 RESULT_CONFLICT ist ausschliesslich interner Statistik-RPC-Fehler, keine
 öffentliche Schreib-API. Parse-/Grössen-/Rate-Fehler ohne vollständig validierte
@@ -380,7 +415,8 @@ Unterbrechung liefert zuverlässig einen der Anwendungscodes an den Browser.
 
 Alle regulären Siege aller registrierten Spiele werden gemeinsam nach demselben
 normalisierten Namensschlüssel gezählt, ohne Spielspalte. Aktuell gibt es nur
-Tic Tac Toe. Draw, abort, Disconnect und Raumlöschung erzeugen keinen Sieg.
+Tic Tac Toe mit beiden Modi; auch zwischen diesen wird nicht getrennt. Draw,
+abort, Disconnect und Raumlöschung erzeugen keinen Sieg.
 Der Server speichert den running→won-Abschluss und ein Ereignis mit matchId und
 eingefrorenem Gewinnernamen atomar. Eine persistente Outbox liefert an ein
 separates dauerhaftes GlobalStats-Durable-Object. Sie überlebt logischen
@@ -392,14 +428,22 @@ einmal, widersprüchliches Ergebnis wird abgelehnt. Verlorene RPC-Bestätigung
 führt nicht zu Doppelzählung. GET /api/stats kann unmittelbar nach dem Sieg noch
 den alten Stand zeigen; bei Störung ist auch längere Verzögerung möglich.
 Begrenzt nachladen und manuelle Aktualisierung anbieten, keine unendliche
-Vordergrundschleife. Kein Live-Abonnement und keine öffentliche Schreib-API.
+Vordergrundschleife. Kein Live-Abonnement. Bewusste Korrekturen sind über PUT /api/stats möglich.
 Lokales Backend und öffentliche Cloudflare-Instanz haben getrennte Datenbestände.
 
-## Tic Tac Toe 3 × 3
+## Tic Tac Toe: Classic und Fünf in einer Reihe
 
-gameId tic-tac-toe, Version als String "1", exakt zwei Spieler, nur Config {}.
-action hat exakt zwei Felder: kind gleich "place", cell ganzzahlig 0–8.
-Indizes zeilenweise:
+gameId tic-tac-toe, Version als String "1", exakt zwei Spieler. Config `{}` oder
+exakt `{"mode":"classic"}` wählt Classic (3×3, Gewinnlänge 3); exakt
+`{"mode":"five"}` wählt Fünf in einer Reihe (15×15, Gewinnlänge mindestens 5).
+Weitere Schlüssel oder andere Moduswerte liefern INVALID_CONFIG. Beispiel:
+
+```json
+{"roomCode":"BEN-JOEL-TTT-15","gameId":"tic-tac-toe","config":{"mode":"five"}}
+```
+
+action hat unverändert exakt zwei Felder: kind gleich "place", cell ganzzahlig
+0–8 bei Classic oder 0–224 auf 15×15. Indizes sind zeilenweise; Classic:
 
 ```text
 0 1 2
@@ -407,28 +451,47 @@ Indizes zeilenweise:
 6 7 8
 ```
 
-Die Person mit room.startingPlayerId erhält X und beginnt, die andere O.
-Ansicht nach Start hat **exakt** diese fünf Felder:
+Auf 15×15 lautet der Index `Zeile × 15 + Spalte`, beide ab null. Die Person mit
+room.startingPlayerId erhält X und beginnt, die andere O. Ansicht nach Start:
 
 | Feld | Wert / Schema |
 | --- | --- |
-| board | Array Länge 9, jeder Eintrag null, "X" oder "O". |
+| mode | "classic" oder "five". |
+| boardSize | 3 für Classic, 15 für Fünf in einer Reihe. |
+| winLength | 3 für Classic, 5 für Fünf in einer Reihe. |
+| lastMove | null vor dem ersten Zug/bei unbekanntem Altstand, sonst letzter ganzzahliger Zellindex. |
+| board | Array Länge 9 oder 225, jeder Eintrag null, "X" oder "O". |
 | symbols | Array Länge 2, je {playerId: String, symbol: "X" oder "O"}; X-Spieler zuerst. |
 | yourSymbol | "X" oder "O", für den jeweiligen Empfänger. |
 | currentPlayerId | Zugspieler-ID, bei regulärem Sieg/Draw null. |
-| winningLine | null oder die drei Indizes der erkannten Gewinnlinie. |
+| winningLine | null, drei Classic-Indizes oder vollständige zusammenhängende Gewinnlinie mit mindestens fünf Indizes auf 15×15. |
 
-Beide Spieler sehen dasselbe Brett/Symbole/Zugrecht/Gewinnlinie, aber ihr eigenes
+Die neuen vier Felder ergänzen die bisherigen fünf kompatibel. Alte persistierte
+Classic-Zustände werden unterstützt; unbekannter letzter Zug ergibt lastMove
+null. Ein Client kann Antworten älterer Backends ohne diese Ergänzungen als
+Classic lesen. Beide Spieler sehen dasselbe Brett/Symbole/Zugrecht/Gewinnlinie, aber ihr eigenes
 yourSymbol. Es gibt kein status-Feld innerhalb dieser gesendeten view.
 Nur der aktuelle Teilnehmer kann ein freies Feld setzen. Falscher Spieler,
 belegtes Feld, ungültiger Index/Typ und zusätzliche Aktionsfelder ergeben
 INVALID_ACTION. Kein lokales Brett vor der Serverantwort verbindlich verändern.
 Revisionen zählen erfolgreiche Züge; fehlgeschlagene Züge verändern nichts.
 
-Drei gleiche Symbole in einer der acht Reihen/Spalten/Diagonalen gewinnen.
+Bei Classic gewinnen drei gleiche Symbole in einer der acht Reihen/Spalten/Diagonalen.
 Gewinnlinie folgt der Reihenfolge [0,1,2], [3,4,5], [6,7,8], [0,3,6], [1,4,7],
 [2,5,8], [0,4,8], [2,4,6]. Siegprüfung hat Vorrang vor Draw, auch beim neunten
-Zug. Ohne Sieg und bei vollem Brett draw. Sonst wechselt der Zugspieler.
+Zug. Auf 15×15 gewinnen mindestens fünf zusammenhängende gleiche Symbole
+horizontal, vertikal oder entlang beider Diagonalen; auch längere Reihen zählen.
+Es gelten keine besonderen Eröffnungs- oder Verbotsregeln. Die Gewinnlinie
+enthält dort die vollständige erkannte Folge. In beiden Modi: ohne Sieg und
+bei vollem Brett draw, sonst wechselt der Zugspieler.
+
+Der Hub fragt bei jedem Kachelaufruf nach dem Modus und verwendet BEN-JOEL-TTT
+für Classic oder BEN-JOEL-TTT-15 für 15×15. Beide Spieler desselben Modus kommen
+zusammen; unterschiedliche Modi liegen in getrennten Räumen. Manuelle
+Raumanlage behält den gewählten Modus, Beitritt übernimmt die tatsächliche
+room.config des Servers, schon in der Lobby. Reconnect behält das Ziel ohne
+erneutes POST; der nächste Kachelaufruf fragt den Modus erneut. Rematches
+behalten die Config und die globale Statistik zählt Siege beider Modi zusammen.
 
 **room.status ist verbindlich**, insbesondere nach abort: Der interne
 Engine-Zustand und damit view.currentPlayerId können unverändert bleiben,
@@ -444,6 +507,7 @@ Broadcast oder zwischenzeitlichen Ping. Jedes JSON-Objekt in einem Frame-Block
 ist vollständig. Empfangene IDs müssen im echten Client aus den Antworten
 übernommen werden; diese festen Beispiel-UUIDs nicht fest einprogrammieren.
 Die erste serverseitige Startwahl fällt hier auf Joël; sie kann real anders ausfallen.
+Dieser Ablauf verwendet Classic und die abwärtskompatible Config `{}`.
 
 ### 1. Raum erstellen
 
@@ -464,13 +528,13 @@ HTTP 201:
 Joël öffnet wss://multiplayer-games.haldimann-joel.workers.dev/api/rooms/JOEL-BEN/ws?name=Jo%C3%ABl und erhält welcome:
 
 ```json
-{"v":1,"type":"welcome","roomInstanceId":"11111111-1111-4111-8111-111111111111","matchId":null,"revision":0,"room":{"roomCode":"JOEL-BEN","gameId":"tic-tac-toe","players":[{"playerId":"22222222-2222-4222-8222-222222222222","displayName":"Joël","ready":false,"connected":true}],"status":{"type":"lobby"},"participants":[],"startingPlayerId":null,"rematchVotes":[]},"view":null,"playerId":"22222222-2222-4222-8222-222222222222","connectionId":"44444444-4444-4444-8444-444444444444","settings":{"emptyRoomTtlMs":300000,"heartbeatIntervalMs":25000,"connectionTimeoutMs":120000,"maxMessageBytes":16384,"maxHttpBodyBytes":16384,"rateWindowMs":10000,"maxMessagesPerWindow":60,"dedupeEntriesPerPlayer":64,"statsRetryBaseMs":1000,"statsRetryMaxMs":60000}}
+{"v":1,"type":"welcome","roomInstanceId":"11111111-1111-4111-8111-111111111111","matchId":null,"revision":0,"room":{"roomCode":"JOEL-BEN","gameId":"tic-tac-toe","players":[{"playerId":"22222222-2222-4222-8222-222222222222","displayName":"Joël","ready":false,"connected":true}],"status":{"type":"lobby"},"participants":[],"startingPlayerId":null,"rematchVotes":[],"config":{}},"view":null,"playerId":"22222222-2222-4222-8222-222222222222","connectionId":"44444444-4444-4444-8444-444444444444","settings":{"emptyRoomTtlMs":300000,"heartbeatIntervalMs":25000,"connectionTimeoutMs":120000,"maxMessageBytes":16384,"maxHttpBodyBytes":16384,"rateWindowMs":10000,"maxMessagesPerWindow":60,"dedupeEntriesPerPlayer":64,"statsRetryBaseMs":1000,"statsRetryMaxMs":60000}}
 ```
 
 Ben öffnet wss://multiplayer-games.haldimann-joel.workers.dev/api/rooms/JOEL-BEN/ws?name=Ben und erhält:
 
 ```json
-{"v":1,"type":"welcome","roomInstanceId":"11111111-1111-4111-8111-111111111111","matchId":null,"revision":0,"room":{"roomCode":"JOEL-BEN","gameId":"tic-tac-toe","players":[{"playerId":"22222222-2222-4222-8222-222222222222","displayName":"Joël","ready":false,"connected":true},{"playerId":"33333333-3333-4333-8333-333333333333","displayName":"Ben","ready":false,"connected":true}],"status":{"type":"lobby"},"participants":[],"startingPlayerId":null,"rematchVotes":[]},"view":null,"playerId":"33333333-3333-4333-8333-333333333333","connectionId":"55555555-5555-4555-8555-555555555555","settings":{"emptyRoomTtlMs":300000,"heartbeatIntervalMs":25000,"connectionTimeoutMs":120000,"maxMessageBytes":16384,"maxHttpBodyBytes":16384,"rateWindowMs":10000,"maxMessagesPerWindow":60,"dedupeEntriesPerPlayer":64,"statsRetryBaseMs":1000,"statsRetryMaxMs":60000}}
+{"v":1,"type":"welcome","roomInstanceId":"11111111-1111-4111-8111-111111111111","matchId":null,"revision":0,"room":{"roomCode":"JOEL-BEN","gameId":"tic-tac-toe","players":[{"playerId":"22222222-2222-4222-8222-222222222222","displayName":"Joël","ready":false,"connected":true},{"playerId":"33333333-3333-4333-8333-333333333333","displayName":"Ben","ready":false,"connected":true}],"status":{"type":"lobby"},"participants":[],"startingPlayerId":null,"rematchVotes":[],"config":{}},"view":null,"playerId":"33333333-3333-4333-8333-333333333333","connectionId":"55555555-5555-4555-8555-555555555555","settings":{"emptyRoomTtlMs":300000,"heartbeatIntervalMs":25000,"connectionTimeoutMs":120000,"maxMessageBytes":16384,"maxHttpBodyBytes":16384,"rateWindowMs":10000,"maxMessagesPerWindow":60,"dedupeEntriesPerPlayer":64,"statsRetryBaseMs":1000,"statsRetryMaxMs":60000}}
 ```
 
 Der anschliessende state an beide enthält diese beiden Spieler; view bleibt null. Joëls eigene playerId bleibt die aus seinem welcome.
@@ -498,7 +562,7 @@ Ben sendet, erhält ack; danach state für beide:
 ```
 
 ```json
-{"v":1,"type":"state","roomInstanceId":"11111111-1111-4111-8111-111111111111","matchId":null,"revision":0,"room":{"roomCode":"JOEL-BEN","gameId":"tic-tac-toe","players":[{"playerId":"22222222-2222-4222-8222-222222222222","displayName":"Joël","ready":true,"connected":true},{"playerId":"33333333-3333-4333-8333-333333333333","displayName":"Ben","ready":true,"connected":true}],"status":{"type":"lobby"},"participants":[],"startingPlayerId":null,"rematchVotes":[]},"view":null}
+{"v":1,"type":"state","roomInstanceId":"11111111-1111-4111-8111-111111111111","matchId":null,"revision":0,"room":{"roomCode":"JOEL-BEN","gameId":"tic-tac-toe","players":[{"playerId":"22222222-2222-4222-8222-222222222222","displayName":"Joël","ready":true,"connected":true},{"playerId":"33333333-3333-4333-8333-333333333333","displayName":"Ben","ready":true,"connected":true}],"status":{"type":"lobby"},"participants":[],"startingPlayerId":null,"rematchVotes":[],"config":{}},"view":null}
 ```
 
 Joël startet, bekommt ack der neuen Partie und danach state:
@@ -512,7 +576,7 @@ Joël startet, bekommt ack der neuen Partie und danach state:
 ```
 
 ```json
-{"v":1,"type":"state","roomInstanceId":"11111111-1111-4111-8111-111111111111","matchId":"66666666-6666-4666-8666-666666666666","revision":0,"room":{"roomCode":"JOEL-BEN","gameId":"tic-tac-toe","players":[{"playerId":"22222222-2222-4222-8222-222222222222","displayName":"Joël","ready":false,"connected":true},{"playerId":"33333333-3333-4333-8333-333333333333","displayName":"Ben","ready":false,"connected":true}],"status":{"type":"running"},"participants":["22222222-2222-4222-8222-222222222222","33333333-3333-4333-8333-333333333333"],"startingPlayerId":"22222222-2222-4222-8222-222222222222","rematchVotes":[]},"view":{"board":[null,null,null,null,null,null,null,null,null],"symbols":[{"playerId":"22222222-2222-4222-8222-222222222222","symbol":"X"},{"playerId":"33333333-3333-4333-8333-333333333333","symbol":"O"}],"yourSymbol":"X","currentPlayerId":"22222222-2222-4222-8222-222222222222","winningLine":null}}
+{"v":1,"type":"state","roomInstanceId":"11111111-1111-4111-8111-111111111111","matchId":"66666666-6666-4666-8666-666666666666","revision":0,"room":{"roomCode":"JOEL-BEN","gameId":"tic-tac-toe","players":[{"playerId":"22222222-2222-4222-8222-222222222222","displayName":"Joël","ready":false,"connected":true},{"playerId":"33333333-3333-4333-8333-333333333333","displayName":"Ben","ready":false,"connected":true}],"status":{"type":"running"},"participants":["22222222-2222-4222-8222-222222222222","33333333-3333-4333-8333-333333333333"],"startingPlayerId":"22222222-2222-4222-8222-222222222222","rematchVotes":[],"config":{}},"view":{"mode":"classic","boardSize":3,"winLength":3,"lastMove":null,"board":[null,null,null,null,null,null,null,null,null],"symbols":[{"playerId":"22222222-2222-4222-8222-222222222222","symbol":"X"},{"playerId":"33333333-3333-4333-8333-333333333333","symbol":"O"}],"yourSymbol":"X","currentPlayerId":"22222222-2222-4222-8222-222222222222","winningLine":null}}
 ```
 
 Bens state ist identisch bis auf view.yourSymbol: "O". Beide Ready-Werte sind nun false.
@@ -530,7 +594,7 @@ Zug 1: Joël setzt X auf Feld 0. Clientframe, ack und resultierender state für 
 ```
 
 ```json
-{"v":1,"type":"state","roomInstanceId":"11111111-1111-4111-8111-111111111111","matchId":"66666666-6666-4666-8666-666666666666","revision":1,"room":{"roomCode":"JOEL-BEN","gameId":"tic-tac-toe","players":[{"playerId":"22222222-2222-4222-8222-222222222222","displayName":"Joël","ready":false,"connected":true},{"playerId":"33333333-3333-4333-8333-333333333333","displayName":"Ben","ready":false,"connected":true}],"status":{"type":"running"},"participants":["22222222-2222-4222-8222-222222222222","33333333-3333-4333-8333-333333333333"],"startingPlayerId":"22222222-2222-4222-8222-222222222222","rematchVotes":[]},"view":{"board":["X",null,null,null,null,null,null,null,null],"symbols":[{"playerId":"22222222-2222-4222-8222-222222222222","symbol":"X"},{"playerId":"33333333-3333-4333-8333-333333333333","symbol":"O"}],"yourSymbol":"X","currentPlayerId":"33333333-3333-4333-8333-333333333333","winningLine":null}}
+{"v":1,"type":"state","roomInstanceId":"11111111-1111-4111-8111-111111111111","matchId":"66666666-6666-4666-8666-666666666666","revision":1,"room":{"roomCode":"JOEL-BEN","gameId":"tic-tac-toe","players":[{"playerId":"22222222-2222-4222-8222-222222222222","displayName":"Joël","ready":false,"connected":true},{"playerId":"33333333-3333-4333-8333-333333333333","displayName":"Ben","ready":false,"connected":true}],"status":{"type":"running"},"participants":["22222222-2222-4222-8222-222222222222","33333333-3333-4333-8333-333333333333"],"startingPlayerId":"22222222-2222-4222-8222-222222222222","rematchVotes":[],"config":{}},"view":{"mode":"classic","boardSize":3,"winLength":3,"lastMove":0,"board":["X",null,null,null,null,null,null,null,null],"symbols":[{"playerId":"22222222-2222-4222-8222-222222222222","symbol":"X"},{"playerId":"33333333-3333-4333-8333-333333333333","symbol":"O"}],"yourSymbol":"X","currentPlayerId":"33333333-3333-4333-8333-333333333333","winningLine":null}}
 ```
 
 Zug 2: Ben setzt O auf Feld 3. Clientframe, ack und resultierender state für Joël:
@@ -544,7 +608,7 @@ Zug 2: Ben setzt O auf Feld 3. Clientframe, ack und resultierender state für Jo
 ```
 
 ```json
-{"v":1,"type":"state","roomInstanceId":"11111111-1111-4111-8111-111111111111","matchId":"66666666-6666-4666-8666-666666666666","revision":2,"room":{"roomCode":"JOEL-BEN","gameId":"tic-tac-toe","players":[{"playerId":"22222222-2222-4222-8222-222222222222","displayName":"Joël","ready":false,"connected":true},{"playerId":"33333333-3333-4333-8333-333333333333","displayName":"Ben","ready":false,"connected":true}],"status":{"type":"running"},"participants":["22222222-2222-4222-8222-222222222222","33333333-3333-4333-8333-333333333333"],"startingPlayerId":"22222222-2222-4222-8222-222222222222","rematchVotes":[]},"view":{"board":["X",null,null,"O",null,null,null,null,null],"symbols":[{"playerId":"22222222-2222-4222-8222-222222222222","symbol":"X"},{"playerId":"33333333-3333-4333-8333-333333333333","symbol":"O"}],"yourSymbol":"X","currentPlayerId":"22222222-2222-4222-8222-222222222222","winningLine":null}}
+{"v":1,"type":"state","roomInstanceId":"11111111-1111-4111-8111-111111111111","matchId":"66666666-6666-4666-8666-666666666666","revision":2,"room":{"roomCode":"JOEL-BEN","gameId":"tic-tac-toe","players":[{"playerId":"22222222-2222-4222-8222-222222222222","displayName":"Joël","ready":false,"connected":true},{"playerId":"33333333-3333-4333-8333-333333333333","displayName":"Ben","ready":false,"connected":true}],"status":{"type":"running"},"participants":["22222222-2222-4222-8222-222222222222","33333333-3333-4333-8333-333333333333"],"startingPlayerId":"22222222-2222-4222-8222-222222222222","rematchVotes":[],"config":{}},"view":{"mode":"classic","boardSize":3,"winLength":3,"lastMove":3,"board":["X",null,null,"O",null,null,null,null,null],"symbols":[{"playerId":"22222222-2222-4222-8222-222222222222","symbol":"X"},{"playerId":"33333333-3333-4333-8333-333333333333","symbol":"O"}],"yourSymbol":"X","currentPlayerId":"22222222-2222-4222-8222-222222222222","winningLine":null}}
 ```
 
 Zug 3: Joël setzt X auf Feld 1. Clientframe, ack und resultierender state für Joël:
@@ -558,7 +622,7 @@ Zug 3: Joël setzt X auf Feld 1. Clientframe, ack und resultierender state für 
 ```
 
 ```json
-{"v":1,"type":"state","roomInstanceId":"11111111-1111-4111-8111-111111111111","matchId":"66666666-6666-4666-8666-666666666666","revision":3,"room":{"roomCode":"JOEL-BEN","gameId":"tic-tac-toe","players":[{"playerId":"22222222-2222-4222-8222-222222222222","displayName":"Joël","ready":false,"connected":true},{"playerId":"33333333-3333-4333-8333-333333333333","displayName":"Ben","ready":false,"connected":true}],"status":{"type":"running"},"participants":["22222222-2222-4222-8222-222222222222","33333333-3333-4333-8333-333333333333"],"startingPlayerId":"22222222-2222-4222-8222-222222222222","rematchVotes":[]},"view":{"board":["X","X",null,"O",null,null,null,null,null],"symbols":[{"playerId":"22222222-2222-4222-8222-222222222222","symbol":"X"},{"playerId":"33333333-3333-4333-8333-333333333333","symbol":"O"}],"yourSymbol":"X","currentPlayerId":"33333333-3333-4333-8333-333333333333","winningLine":null}}
+{"v":1,"type":"state","roomInstanceId":"11111111-1111-4111-8111-111111111111","matchId":"66666666-6666-4666-8666-666666666666","revision":3,"room":{"roomCode":"JOEL-BEN","gameId":"tic-tac-toe","players":[{"playerId":"22222222-2222-4222-8222-222222222222","displayName":"Joël","ready":false,"connected":true},{"playerId":"33333333-3333-4333-8333-333333333333","displayName":"Ben","ready":false,"connected":true}],"status":{"type":"running"},"participants":["22222222-2222-4222-8222-222222222222","33333333-3333-4333-8333-333333333333"],"startingPlayerId":"22222222-2222-4222-8222-222222222222","rematchVotes":[],"config":{}},"view":{"mode":"classic","boardSize":3,"winLength":3,"lastMove":1,"board":["X","X",null,"O",null,null,null,null,null],"symbols":[{"playerId":"22222222-2222-4222-8222-222222222222","symbol":"X"},{"playerId":"33333333-3333-4333-8333-333333333333","symbol":"O"}],"yourSymbol":"X","currentPlayerId":"33333333-3333-4333-8333-333333333333","winningLine":null}}
 ```
 
 Zug 4: Ben setzt O auf Feld 4. Clientframe, ack und resultierender state für Joël:
@@ -572,7 +636,7 @@ Zug 4: Ben setzt O auf Feld 4. Clientframe, ack und resultierender state für Jo
 ```
 
 ```json
-{"v":1,"type":"state","roomInstanceId":"11111111-1111-4111-8111-111111111111","matchId":"66666666-6666-4666-8666-666666666666","revision":4,"room":{"roomCode":"JOEL-BEN","gameId":"tic-tac-toe","players":[{"playerId":"22222222-2222-4222-8222-222222222222","displayName":"Joël","ready":false,"connected":true},{"playerId":"33333333-3333-4333-8333-333333333333","displayName":"Ben","ready":false,"connected":true}],"status":{"type":"running"},"participants":["22222222-2222-4222-8222-222222222222","33333333-3333-4333-8333-333333333333"],"startingPlayerId":"22222222-2222-4222-8222-222222222222","rematchVotes":[]},"view":{"board":["X","X",null,"O","O",null,null,null,null],"symbols":[{"playerId":"22222222-2222-4222-8222-222222222222","symbol":"X"},{"playerId":"33333333-3333-4333-8333-333333333333","symbol":"O"}],"yourSymbol":"X","currentPlayerId":"22222222-2222-4222-8222-222222222222","winningLine":null}}
+{"v":1,"type":"state","roomInstanceId":"11111111-1111-4111-8111-111111111111","matchId":"66666666-6666-4666-8666-666666666666","revision":4,"room":{"roomCode":"JOEL-BEN","gameId":"tic-tac-toe","players":[{"playerId":"22222222-2222-4222-8222-222222222222","displayName":"Joël","ready":false,"connected":true},{"playerId":"33333333-3333-4333-8333-333333333333","displayName":"Ben","ready":false,"connected":true}],"status":{"type":"running"},"participants":["22222222-2222-4222-8222-222222222222","33333333-3333-4333-8333-333333333333"],"startingPlayerId":"22222222-2222-4222-8222-222222222222","rematchVotes":[],"config":{}},"view":{"mode":"classic","boardSize":3,"winLength":3,"lastMove":4,"board":["X","X",null,"O","O",null,null,null,null],"symbols":[{"playerId":"22222222-2222-4222-8222-222222222222","symbol":"X"},{"playerId":"33333333-3333-4333-8333-333333333333","symbol":"O"}],"yourSymbol":"X","currentPlayerId":"22222222-2222-4222-8222-222222222222","winningLine":null}}
 ```
 
 Zug 5: Joël setzt X auf Feld 2. Clientframe, ack und resultierender state für Joël:
@@ -586,7 +650,7 @@ Zug 5: Joël setzt X auf Feld 2. Clientframe, ack und resultierender state für 
 ```
 
 ```json
-{"v":1,"type":"state","roomInstanceId":"11111111-1111-4111-8111-111111111111","matchId":"66666666-6666-4666-8666-666666666666","revision":5,"room":{"roomCode":"JOEL-BEN","gameId":"tic-tac-toe","players":[{"playerId":"22222222-2222-4222-8222-222222222222","displayName":"Joël","ready":false,"connected":true},{"playerId":"33333333-3333-4333-8333-333333333333","displayName":"Ben","ready":false,"connected":true}],"status":{"type":"won","winnerPlayerId":"22222222-2222-4222-8222-222222222222"},"participants":["22222222-2222-4222-8222-222222222222","33333333-3333-4333-8333-333333333333"],"startingPlayerId":"22222222-2222-4222-8222-222222222222","rematchVotes":[]},"view":{"board":["X","X","X","O","O",null,null,null,null],"symbols":[{"playerId":"22222222-2222-4222-8222-222222222222","symbol":"X"},{"playerId":"33333333-3333-4333-8333-333333333333","symbol":"O"}],"yourSymbol":"X","currentPlayerId":null,"winningLine":[0,1,2]}}
+{"v":1,"type":"state","roomInstanceId":"11111111-1111-4111-8111-111111111111","matchId":"66666666-6666-4666-8666-666666666666","revision":5,"room":{"roomCode":"JOEL-BEN","gameId":"tic-tac-toe","players":[{"playerId":"22222222-2222-4222-8222-222222222222","displayName":"Joël","ready":false,"connected":true},{"playerId":"33333333-3333-4333-8333-333333333333","displayName":"Ben","ready":false,"connected":true}],"status":{"type":"won","winnerPlayerId":"22222222-2222-4222-8222-222222222222"},"participants":["22222222-2222-4222-8222-222222222222","33333333-3333-4333-8333-333333333333"],"startingPlayerId":"22222222-2222-4222-8222-222222222222","rematchVotes":[],"config":{}},"view":{"mode":"classic","boardSize":3,"winLength":3,"lastMove":2,"board":["X","X","X","O","O",null,null,null,null],"symbols":[{"playerId":"22222222-2222-4222-8222-222222222222","symbol":"X"},{"playerId":"33333333-3333-4333-8333-333333333333","symbol":"O"}],"yourSymbol":"X","currentPlayerId":null,"winningLine":[0,1,2]}}
 ```
 
 Die Revision ist jetzt 5, Gewinner Joël, Gewinnlinie [0,1,2]. Auch Ben erhält won und dieselbe Gewinner-ID; sein yourSymbol bleibt O.
@@ -614,7 +678,7 @@ Joëls Zustimmung, ack und state:
 ```
 
 ```json
-{"v":1,"type":"state","roomInstanceId":"11111111-1111-4111-8111-111111111111","matchId":"66666666-6666-4666-8666-666666666666","revision":5,"room":{"roomCode":"JOEL-BEN","gameId":"tic-tac-toe","players":[{"playerId":"22222222-2222-4222-8222-222222222222","displayName":"Joël","ready":false,"connected":true},{"playerId":"33333333-3333-4333-8333-333333333333","displayName":"Ben","ready":false,"connected":true}],"status":{"type":"won","winnerPlayerId":"22222222-2222-4222-8222-222222222222"},"participants":["22222222-2222-4222-8222-222222222222","33333333-3333-4333-8333-333333333333"],"startingPlayerId":"22222222-2222-4222-8222-222222222222","rematchVotes":["22222222-2222-4222-8222-222222222222"]},"view":{"board":["X","X","X","O","O",null,null,null,null],"symbols":[{"playerId":"22222222-2222-4222-8222-222222222222","symbol":"X"},{"playerId":"33333333-3333-4333-8333-333333333333","symbol":"O"}],"yourSymbol":"X","currentPlayerId":null,"winningLine":[0,1,2]}}
+{"v":1,"type":"state","roomInstanceId":"11111111-1111-4111-8111-111111111111","matchId":"66666666-6666-4666-8666-666666666666","revision":5,"room":{"roomCode":"JOEL-BEN","gameId":"tic-tac-toe","players":[{"playerId":"22222222-2222-4222-8222-222222222222","displayName":"Joël","ready":false,"connected":true},{"playerId":"33333333-3333-4333-8333-333333333333","displayName":"Ben","ready":false,"connected":true}],"status":{"type":"won","winnerPlayerId":"22222222-2222-4222-8222-222222222222"},"participants":["22222222-2222-4222-8222-222222222222","33333333-3333-4333-8333-333333333333"],"startingPlayerId":"22222222-2222-4222-8222-222222222222","rematchVotes":["22222222-2222-4222-8222-222222222222"],"config":{}},"view":{"mode":"classic","boardSize":3,"winLength":3,"lastMove":2,"board":["X","X","X","O","O",null,null,null,null],"symbols":[{"playerId":"22222222-2222-4222-8222-222222222222","symbol":"X"},{"playerId":"33333333-3333-4333-8333-333333333333","symbol":"O"}],"yourSymbol":"X","currentPlayerId":null,"winningLine":[0,1,2]}}
 ```
 
 Ben stimmt derselben alten Partie zu. Sein ack bestätigt bereits die neue Partie, danach kommt deren state:
@@ -628,7 +692,7 @@ Ben stimmt derselben alten Partie zu. Sein ack bestätigt bereits die neue Parti
 ```
 
 ```json
-{"v":1,"type":"state","roomInstanceId":"11111111-1111-4111-8111-111111111111","matchId":"77777777-7777-4777-8777-777777777777","revision":0,"room":{"roomCode":"JOEL-BEN","gameId":"tic-tac-toe","players":[{"playerId":"22222222-2222-4222-8222-222222222222","displayName":"Joël","ready":false,"connected":true},{"playerId":"33333333-3333-4333-8333-333333333333","displayName":"Ben","ready":false,"connected":true}],"status":{"type":"running"},"participants":["22222222-2222-4222-8222-222222222222","33333333-3333-4333-8333-333333333333"],"startingPlayerId":"33333333-3333-4333-8333-333333333333","rematchVotes":[]},"view":{"board":[null,null,null,null,null,null,null,null,null],"symbols":[{"playerId":"33333333-3333-4333-8333-333333333333","symbol":"X"},{"playerId":"22222222-2222-4222-8222-222222222222","symbol":"O"}],"yourSymbol":"O","currentPlayerId":"33333333-3333-4333-8333-333333333333","winningLine":null}}
+{"v":1,"type":"state","roomInstanceId":"11111111-1111-4111-8111-111111111111","matchId":"77777777-7777-4777-8777-777777777777","revision":0,"room":{"roomCode":"JOEL-BEN","gameId":"tic-tac-toe","players":[{"playerId":"22222222-2222-4222-8222-222222222222","displayName":"Joël","ready":false,"connected":true},{"playerId":"33333333-3333-4333-8333-333333333333","displayName":"Ben","ready":false,"connected":true}],"status":{"type":"running"},"participants":["22222222-2222-4222-8222-222222222222","33333333-3333-4333-8333-333333333333"],"startingPlayerId":"33333333-3333-4333-8333-333333333333","rematchVotes":[],"config":{}},"view":{"mode":"classic","boardSize":3,"winLength":3,"lastMove":null,"board":[null,null,null,null,null,null,null,null,null],"symbols":[{"playerId":"33333333-3333-4333-8333-333333333333","symbol":"X"},{"playerId":"22222222-2222-4222-8222-222222222222","symbol":"O"}],"yourSymbol":"O","currentPlayerId":"33333333-3333-4333-8333-333333333333","winningLine":null}}
 ```
 
 Die Rauminstanz und playerIds bleiben gleich. Ben ist jetzt Startspieler und X, Joël O. Neue matchId, Revision 0 und leere Stimmen. Bens Ansicht hat yourSymbol X. Ein erneutes ready oder start ist nicht erforderlich; die Statistik bleibt bei einem Sieg.

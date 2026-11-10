@@ -11,7 +11,12 @@ export function createRegistry(engines) {
   }
   return Object.freeze({
     get(id) { const engine = registry.get(id); if (!engine) fail('UNKNOWN_GAME'); return engine; },
-    list() { return [...registry.values()].map(({ id, version, minPlayers, maxPlayers }) => ({ id, version, minPlayers, maxPlayers })); },
+    list() {
+      return [...registry.values()].map(({ id, version, minPlayers, maxPlayers, modes }) => ({
+        id, version, minPlayers, maxPlayers,
+        ...(modes ? { modes: modes.map(mode => ({ ...mode })) } : {}),
+      }));
+    },
   });
 }
 // Produktive Engines; Test-Fixtures werden nur in getrennten Test-Workern registriert.

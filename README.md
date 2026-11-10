@@ -1,8 +1,17 @@
 # multiplayer-games
 
-Private modulare Multiplayer-Spielplattform mit JavaScript-ES-Modulen, Cloudflare
+Modulare Multiplayer-Spielplattform mit JavaScript-ES-Modulen, Cloudflare
 Workers, SQLite Durable Objects und nativen WebSockets mit Hibernation API.
 Das Frontend bleibt HTML, CSS und Vanilla JavaScript.
+
+## Spiel herunterladen
+
+Unter [GitHub Releases](https://github.com/Goeschel18769/multiplayer-games/releases/latest)
+das Asset **`multiplayer-games.zip`** herunterladen und vollständig entpacken.
+Es enthält ausschließlich `index.html`, `app.js` und `style.css`. Alle drei Dateien
+im selben Ordner lassen und `index.html` per Doppelklick öffnen. Spieler benötigen
+weder Node.js noch einen lokalen Webserver; eine Internetverbindung zum Backend
+ist erforderlich. Der Download enthält die fertig gebaute Spieloberfläche.
 
 ## Voraussetzungen
 
@@ -31,8 +40,8 @@ npm run check:deploy
 npm run build
 ```
 
-Das [Repository](https://github.com/Goeschel18769/multiplayer-games) ist privat;
-zum Klonen und Pushen ist ein berechtigtes GitHub-Konto erforderlich.
+Das [Repository](https://github.com/Goeschel18769/multiplayer-games) ist öffentlich;
+zum Pushen ist ein Konto mit Schreibzugriff erforderlich.
 
 `npm run dev` startet das Backend lokal. Für die Entwicklung bleiben alle
 Quellen, Tests und die Dokumentation im Repository. `node_modules/`, lokale
@@ -40,8 +49,9 @@ Wrangler-Daten, `.env`-/`.dev.vars`-Dateien und die erzeugte `release/`-Ausgabe
 werden nicht eingecheckt. Öffentliche `.example`-Vorlagen dürfen versioniert
 werden und enthalten keine Zugangsdaten.
 
-Für Spieler den mit `npm run build` erzeugten vollständigen `release/`-Ordner
-weitergeben. Ein GitHub-Quellcode-Download ist noch keine gebaute Spielausgabe.
+Für Spieler eine gebaute Ausgabe als GitHub-Release bereitstellen. Das passende
+Download-Archiv entsteht mit `npm run package:release` in `dist/multiplayer-games.zip`.
+Ein GitHub-Quellcode-Download ist noch keine gebaute Spielausgabe.
 Die [technische Übergabe](handoff/README.md) liegt zusätzlich als
 [handoff.zip](handoff.zip) im Repository; das ZIP ist eine Momentaufnahme der
 sechs Dateien in `handoff/` und muss bei deren Änderung aktualisiert werden.
@@ -50,6 +60,22 @@ eine lokale `tests/manual/client.zip`-Kopie gehört nicht zum Repository.
 
 Ein Git-Push veröffentlicht den Quellstand im gewählten Repository. Er führt
 kein Cloudflare-Deployment aus und aktualisiert das öffentliche Backend nicht.
+
+### Automatische Spiel-Releases
+
+Jeder Push auf `main` startet den [Release-Workflow](.github/workflows/release.yml).
+Nach `npm ci`, den vollständigen Tests und dem Backend-Dry-Run baut er die
+öffentliche Spielausgabe und veröffentlicht ein GitHub-Release mit
+`multiplayer-games.zip` sowie den drei Einzeldateien. Bei fehlgeschlagenen
+Prüfungen bleibt die vorherige Ausgabe unter
+[Neueste Spielausgabe](https://github.com/Goeschel18769/multiplayer-games/releases/latest)
+erhalten. Releases können außerdem auf `main` über Actions manuell gestartet werden.
+
+Die erste Version ist `v1.0.0` (aus `package.json`); weitere Versionen zählen
+automatisch die Patchnummer des höchsten vorhandenen stabilen Versionstags hoch.
+Ein erneuter Lauf für denselben Commit verwendet dessen bestehenden Tag.
+Der Workflow veröffentlicht erst nach dem vollständigen Upload aller vier Assets.
+Es werden keine Cloudflare-Schlüssel benötigt und kein Backend deployt.
 
 ## Lokales Backend
 
@@ -66,7 +92,7 @@ Healthcheck: HTTP 200 mit `{"ok":true}`. Andere Methoden auf `/health` liefern
 405 mit `Allow: GET`. Der Root-Pfad `/` liefert absichtlich 404. HTTP-Fehler
 verwenden konsistent `{code,message}` und enthalten CORS-Header.
 
-## Aktueller Stand — Phase 8: technische Frontend-Übergabe
+## Aktueller Stand — Phase 9: Spielhub für Ben und Joël
 
 Implementiert sind Projektstruktur, Healthcheck, HTTP-API, wiederverwendbares
 Raumframework, Reconnect, Heartbeat, fünf Minuten Leerraumfrist, gemeinsamer
@@ -74,10 +100,24 @@ Alarm-Scheduler, Engine-Vertrag, individuelle Spieleransichten und zuverlässige
 globale Siegestatistik mit persistenter Outbox und Deduplizierung.
 
 Die produktive Registry enthält `tic-tac-toe` (Version 1, genau zwei Spieler).
-Die reine Engine implementiert alle Regeln für ein 3×3-Brett, individuelle
-Spieleransichten und strikte Zugprüfung. Reguläre Siege werden durch die
+Die reine Engine bietet Classic (3×3, drei in einer Reihe) und Fünf in einer
+Reihe (15×15, mindestens fünf horizontal, vertikal oder diagonal), individuelle
+Spieleransichten und strikte Zugprüfung. Es gelten keine besonderen Eröffnungs-
+oder Verbotsregeln. Reguläre Siege beider Modi werden gemeinsam durch die
 bestehende Statistik-Outbox gezählt. Raum-/Transportkern und Fünf-Minuten-Frist
 bleiben unverändert. Die 2–4-Spieler-Fixture ist nur in Testkonfigurationen aktiv.
+
+Der kompakte Hub zeigt eine Tic-Tac-Toe-Kachel mit generierter Bildvorschau in warmer
+Papieroptik, ohne Seitennamen oder Begrüßungstexte. Der hervorgehobene globale
+Siegestand steht oben mittig: Zahlen öffnen Bearbeiten und Reset, Namen die
+Spielerwahl. Beim ersten Öffnen im Tab wird Ben oder Joël in einem Dialog gewählt.
+Hell-, Dunkel- und der eigens gestaltete Büro-Modus sind über eine kleine Lasche
+oben rechts per Hover, Tastaturfokus oder Antippen erreichbar. Dezente Hover-
+und Druckeffekte beachten die Einstellung für reduzierte Bewegung.
+Jeder Klick auf die Spielkachel öffnet zuerst die Moduswahl. Das große Brett
+bleibt über einen scrollbaren Ausschnitt mit ausreichend großen Touchfeldern
+sowie Pfeiltasten und Home/End bedienbar. Nur der Server entscheidet Spielregeln
+und Ergebnisse.
 
 Die modulare Spieloberfläche liegt in `frontend/`. Der Worker liefert keine
 Frontend-Dateien aus. `npm run build` erzeugt eine eigenständige Ausgabe in
@@ -153,6 +193,25 @@ mit `defer`, ohne Laufzeit-Imports, nachgeladene Chunks, CDN, externe Schriftart
 lokale fetch-Aufrufe oder Service Worker. Der generierte Ordner ist in Git
 ignoriert und wird vor jedem Build gezielt bereinigt. Backend, Tests und
 .env-Dateien werden nicht mitgeliefert.
+Die PNG-Vorschau wird per esbuild als Data-URL in `app.js` eingebettet; es bleibt
+bei genau drei Release-Dateien ohne separate Bilddatei zur Laufzeit.
+
+Für ein Download-Archiv zusätzlich Python 3 installieren und ausführen:
+
+```sh
+npm run package:release
+```
+
+Der Befehl baut immer erneut mit der öffentlichen Backend-Konfiguration, prüft
+die drei Ausgabedateien und erzeugt `dist/multiplayer-games.zip`. Im ZIP liegen
+`index.html`, `app.js` und `style.css` direkt an der Wurzel, ohne Quellcode,
+Backend oder Unterordner. Auch nach einem lokalen Test-Build wird damit keine
+`127.0.0.1`-Konfiguration ausgeliefert. `dist/` ist wie `release/` in Git ignoriert.
+
+Die [Bildquelle](frontend/src/assets/tic-tac-toe-preview.png) wurde mit dem
+integrierten Bildgenerator `imagegen` erzeugt (1536×1024 Pixel, rund 2,83 MiB).
+Der [verwendete Prompt](frontend/src/assets/tic-tac-toe-preview.prompt.txt)
+liegt neben der PNG-Datei.
 
 ## Öffentliche Konfiguration
 
@@ -170,22 +229,57 @@ Oberfläche benötigt keine Konfigurationsdatei zur Laufzeit. Die eigenständige
 
 ## Spielen und Wiederverbinden
 
-Name und Raumcode eingeben, Tic Tac Toe auswählen und „Raum erstellen & beitreten“
-wählen. Mitspieler wählen „Bestehendem Raum beitreten“. Alle Teilnehmer setzen
-sich bereit; danach kann die erste Partie gestartet werden. Nur der aktuelle
-Spieler kann ein leeres Feld wählen. Brett und Ergebnisse stammen vom Server.
+Ben oder Joël auswählen, die Tic-Tac-Toe-Kachel anklicken und einen Modus wählen.
+Classic verwendet den gemeinsamen Raum `BEN-JOEL-TTT`, Fünf in einer Reihe
+`BEN-JOEL-TTT-15`. Derselbe Modus führt beide in denselben Raum; die Modi bleiben
+getrennt. Die Oberfläche versucht dessen
+Anlage; ausschließlich `ROOM_EXISTS` führt stattdessen zum Beitritt in den
+bestehenden Raum. Parallele Klicks erzeugen dadurch keine getrennten Räume.
+Weitere Spiele erhalten später jeweils ihren eigenen festen Raumcode in der
+Frontend-Registry. Es gibt keine zufälligen Ausweichräume, die beide Spieler
+unbemerkt trennen könnten.
 
-Falls die Anlage erfolgreich war, aber der Beitritt scheitert, bleibt der Code
-erhalten. „Erneut verbinden“ versucht nur den Beitritt, ohne einen weiteren Raum
-anzulegen. Es gibt keine automatische Wiederverbindung und keine automatische
-Wiederholung unklar bestätigter Aktionen. Eine andere Verbindung mit gleichem
-Namen kann den Platz übernehmen; das bisherige Fenster zeigt einen Hinweis.
+In der Spielansicht öffnet eine unauffällige Raumsteuerung einen Dialog mit dem
+aktuellen Code sowie getrennten Aktionen für Erstellen und Beitreten. Manuelle
+Raumanlage übernimmt den gewählten Modus; ein Beitritt verwendet den tatsächlichen
+Modus des Servers. Manuelle Raumwahl gilt nur für diese Spielansicht; der nächste
+Einstieg aus dem Hub fragt erneut nach dem Modus und nutzt dessen Standardraum.
+Reconnect behält den aktuellen Code und legt keinen Raum an. Rematches behalten
+die Raumkonfiguration, Siege zählen über beide Modi gemeinsam nach Namen.
 
-„Raum verlassen“ trennt nur die Verbindung. Der Platz bleibt reserviert, und erst
-wenn alle getrennt sind, beginnt die Fünf-Minuten-Frist. Name und Raumcode bleiben
-nur im Arbeitsspeicher bis zum Neuladen erhalten, ohne Cookies oder Browserspeicher.
-Die Statistik wird unabhängig vom Spiel geladen, nach Sieg bei Bedarf höchstens
-dreimal abgerufen und kann manuell aktualisiert werden.
+Alle Teilnehmer setzen sich bereit; danach kann die erste Runde gestartet
+werden. Brett, Zugrecht und Ergebnisse stammen weiterhin ausschließlich vom
+Server. „← Spiele“ trennt die Verbindung und führt zum Hub zurück; der Spielerplatz bleibt bis
+zum Raumablauf reserviert. Nach fünf Minuten ohne lebende Verbindungen läuft
+der Raum ab. Eine neue Verbindung mit demselben Namen übernimmt den Platz.
+„Erneut verbinden“ versucht nur den Beitritt und erzeugt keinen weiteren Raum.
+Es gibt keine automatische Wiederholung unklar bestätigter Spielaktionen.
+
+Die Spielerwahl wird optional mit `sessionStorage` unter `multiplayer-player`
+für den aktuellen Tab gemerkt; bei blockiertem Speicher erscheint sie nach jedem
+Neuladen. Ein Klick auf den eigenen Namen im Score öffnet die Wahl erneut. Ein Wechsel
+während einer Partie trennt die Verbindung und führt zum Hub zurück. Die
+Darstellung wird ebenfalls optional im Browserspeicher gemerkt; blockierter
+Speicher verhindert keine Nutzung über `file://`. Keine Cookies, Konten oder
+Sitzungstokens.
+
+Die Statistik wird beim Öffnen, bei Fensterfokus, bei Rückkehr zum Hub und nach
+Siegen mit begrenzten Wiederholungen geladen. Im Score-Dialog lässt sie sich
+manuell aktualisieren. Änderungen und „Auf 0“ bleiben bis „Speichern“ ein Entwurf.
+`PUT /api/stats` speichert alle gewählten Werte atomar und prüft `expectedWins`:
+ein zwischenzeitlicher Sieg oder eine andere Korrektur führt zu `STATS_CONFLICT`
+anstatt zum Überschreiben. Die Deduplizierung bereits gezählter Partien bleibt
+bei einem Reset erhalten. Noch nicht zugestellte Siege können danach eintreffen.
+
+**Die neue Score-Bearbeitung benötigt das aktualisierte Backend.** Ein lokaler
+Frontend-Build stellt dieses nicht bereit. Solange das öffentliche Backend die
+neue API nicht unterstützt, zeigt der Dialog eine verständliche Fehlermeldung;
+es werden keine nur lokal vorgetäuschten Score-Änderungen gespeichert.
+
+**15×15 benötigt ebenfalls das erweiterte Backend.** Die Spielmetadaten liefern
+dafür optional `modes`; ohne diese Angabe bietet das Frontend ausschließlich
+Classic an. Die Moduserweiterung bleibt bei `tic-tac-toe`, Version `1`, und
+Protokoll v1. Ein Deployment ist nicht Teil dieser Änderung.
 
 ## Spieloberfläche und Diagnoseoberfläche
 

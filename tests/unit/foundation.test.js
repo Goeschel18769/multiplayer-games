@@ -22,7 +22,17 @@ test('Zentrale Fristen und Produktionsregistry', () => {
   assert.equal(SETTINGS.emptyRoomTtlMs, 300000);
   assert.equal(SETTINGS.heartbeatIntervalMs, 25000);
   assert.equal(SETTINGS.connectionTimeoutMs, 120000);
-  assert.deepEqual(registry.list(), [{ id: 'tic-tac-toe', version: '1', minPlayers: 2, maxPlayers: 2 }]);
+  const expected = [{ id: 'tic-tac-toe', version: '1', minPlayers: 2, maxPlayers: 2, modes: [
+    { id: 'classic', boardSize: 3, winLength: 3 }, { id: 'five', boardSize: 15, winLength: 5 },
+  ] }];
+  assert.deepEqual(registry.list(), expected);
+  const publicGames = registry.list();
+  publicGames[0].modes[0].id = 'changed';
+  publicGames[0].modes.push({ id: 'extra' });
+  assert.deepEqual(registry.list(), expected);
+  assert.deepEqual(createRegistry([fixtureEngine]).list(), [
+    { id: fixtureEngine.id, version: fixtureEngine.version, minPlayers: fixtureEngine.minPlayers, maxPlayers: fixtureEngine.maxPlayers },
+  ]);
   rejectsCode(() => registry.get('fixture'), 'UNKNOWN_GAME');
 });
 test('Alle Client-Schemas, strikte Kennungen und tatsächliche UTF-8-Bytes', () => {

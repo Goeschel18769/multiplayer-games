@@ -20,6 +20,7 @@ export const ERRORS = Object.freeze({
   METHOD_NOT_ALLOWED: [405, 'Methode nicht erlaubt.'],
   UPGRADE_REQUIRED: [426, 'WebSocket-Upgrade erforderlich.'],
   RESULT_CONFLICT: [409, 'Widersprüchliches Partieergebnis.'],
+  STATS_CONFLICT: [409, 'Der Siegestand hat sich inzwischen geändert. Bitte neu laden und erneut bearbeiten.'],
 });
 export class AppError extends Error {
   constructor(code) {

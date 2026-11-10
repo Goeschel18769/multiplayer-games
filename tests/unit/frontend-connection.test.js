@@ -118,5 +118,30 @@ test('HTTP: nur konfiguriertes Backend, keine Credentials, konkreter API-Fehler 
   assert.equal(requests[0].url, 'https://example.test/api/rooms');
   assert.equal(requests[0].options.credentials, 'omit');
   assert.deepEqual(JSON.parse(requests[0].options.body), { roomCode: 'ROOM', gameId: 'tic-tac-toe', config: {} });
+  await assert.rejects(() => api.createRoom('ROOM-15', 'tic-tac-toe', { mode: 'five' }), /Raum existiert bereits/);
+  assert.deepEqual(JSON.parse(requests[1].options.body), { roomCode: 'ROOM-15', gameId: 'tic-tac-toe', config: { mode: 'five' } });
   for (const backendUrl of ['file:///tmp', 'https://user:password@example.test', 'https://example.test/path']) assert.throws(() => createApi({ backendUrl }));
+});
+
+test('Statistik: Speichern verdrängt alte GETs, währenddessen eintreffender Sieg wird danach geladen', async () => {
+  const h = harness();
+  let finishSave, finishOld, reads = 0;
+  const stats = new Statistics({
+    stats: async () => { reads++; return new Promise(resolve => { finishOld = resolve; }); },
+    setStats: () => new Promise(resolve => { finishSave = resolve; }),
+  }, () => {}, h.timers);
+  const old = stats.refresh();
+  const saved = stats.save([{ displayName: 'Ben', wins: 7, expectedWins: 0 }]);
+  await stats.refresh('ben');
+  assert.equal(reads, 1);
+  finishOld([{ displayName: 'Ben', nameKey: 'ben', wins: 0 }]);
+  await old;
+  assert.equal(stats.loaded, false);
+  stats.api.stats = async () => { reads++; return [{ displayName: 'Ben', nameKey: 'ben', wins: 8 }]; };
+  finishSave([{ displayName: 'Ben', nameKey: 'ben', wins: 7 }]);
+  assert.equal(await saved, true);
+  await new Promise(setImmediate);
+  assert.equal(reads, 2);
+  assert.equal(stats.rows[0].wins, 8);
+  assert.equal(stats.busy, false);
 });

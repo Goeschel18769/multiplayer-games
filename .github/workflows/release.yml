@@ -1,0 +1,70 @@
+name: Spielausgabe veröffentlichen
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Versionsvergabe und Veröffentlichung bleiben für main nacheinander.
+concurrency:
+  group: game-release-main
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    env:
+      WRANGLER_LOG_PATH: ${{ runner.temp }}/wrangler-release.log
+    steps:
+      - name: Quellen und Versionstags laden
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Node.js einrichten
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - run: npm ci
+      - name: Unit- und Workerd-Integrationstests
+        run: npm test
+      - name: Backend-Bundle prüfen (kein Deployment)
+        run: npm run check:deploy
+      - name: Öffentliche Spielausgabe bauen und verpacken
+        run: npm run package:release
+      - name: Vollständigen Download als Release veröffentlichen
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          tag=$(node scripts/release-version.mjs)
+          notes="$RUNNER_TEMP/game-release-notes.md"
+          cp .github/release-notes.md "$notes"
+          printf '\nQuellstand: `%s`\n' "$GITHUB_SHA" >> "$notes"
+
+          # Ein Wiederholungsversuch behält Tag und bereits veröffentlichte Assets.
+          if gh release view "$tag" --json isDraft --jq '.isDraft' > "$RUNNER_TEMP/game-release-draft.txt"; then
+            if [ "$(cat "$RUNNER_TEMP/game-release-draft.txt")" = false ]; then
+              echo "Release $tag ist bereits veröffentlicht."
+              exit 0
+            fi
+          else
+            gh release create "$tag" --draft --target "$GITHUB_SHA" \
+              --title "Spielausgabe $tag" --notes-file "$notes"
+          fi
+
+          # Erst veröffentlichen, wenn ZIP und alle drei Einzeldateien hochgeladen sind.
+          gh release upload "$tag" --clobber \
+            dist/multiplayer-games.zip release/index.html release/app.js release/style.css
+          gh release edit "$tag" --draft=false --latest
+          gh release view "$tag" --json url --jq '.url'

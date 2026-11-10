@@ -135,7 +135,7 @@ export class GameRoom extends DurableObject {
   }
   metadata(room) {
     return {
-      roomCode: room.roomCode, gameId: room.gameId,
+      roomCode: room.roomCode, gameId: room.gameId, config: structuredClone(room.config),
       players: room.players.map(({ playerId, displayName, ready, connectionId }) => ({ playerId, displayName, ready, connected: connectionId !== null })),
       status: room.match?.status ?? { type: 'lobby' },
       participants: room.match?.participants.map(p => p.playerId) ?? [],

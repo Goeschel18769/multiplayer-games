@@ -1,6 +1,6 @@
 # Architektur
 
-## Implementierter Stand — Phase 8
+## Implementierter Stand — Phase 9
 
 Ein npm-Projekt im Hauptordner verwaltet Backend, Frontend und Tests mit einer
 `package.json` und einer Lockdatei. Der Code verwendet JavaScript-ES-Module, kein
@@ -11,7 +11,8 @@ bedienbar. Die technische Diagnoseoberfläche bleibt separat erhalten.
 
 Das Backend besteht aus einem Cloudflare Worker, SQLite-basierten Durable Objects
 und nativen WebSockets mit der WebSocket Hibernation API. Die normale
-Engine-Registry enthält `tic-tac-toe` (Version 1, genau zwei Spieler).
+Engine-Registry enthält `tic-tac-toe` (Version 1, genau zwei Spieler) mit Classic
+(3×3, Gewinnlänge 3) und Fünf in einer Reihe (15×15, Gewinnlänge mindestens 5).
 Unbekannte Engines liefern `UNKNOWN_GAME`. Die produktive Engine wird ebenso
 wie das allgemeine Framework mit echten Workerd-Integrationstests geprüft.
 Die getrennte 2–4-Spieler-Fixture bleibt ausschließlich in Testkonfigurationen.
@@ -167,8 +168,10 @@ Abschluss laufen ohne asynchronen Unterbruch innerhalb dieser Mutation.
 `GlobalStats` führt `wins` und `processed_matches`. Sieger-Normalisierung,
 Ergebnis-Deduplizierung und Erhöhung sind atomar. Dieselbe `matchId` mit identischem
 Ergebnis ist erfolgreich ohne erneutes Zählen; ein Widerspruch wird abgelehnt.
-Nur `won` erzeugt ein Statistikereignis. Es gibt keinen HTTP-Endpunkt zum
-Eintragen von Siegen und kein Statistik-Abonnement.
+Nur `won` erzeugt ein Statistikereignis. Automatische Siegereignisse kommen ausschließlich aus der Outbox.
+`PUT /api/stats` erlaubt zusätzlich bewusste Korrekturen der Zähler mit
+atomarer Prüfung der bisherigen Werte (`expectedWins`); die Tabelle
+`processed_matches` bleibt dabei erhalten. Es gibt kein Statistik-Abonnement.
 
 Die unabhängige `outbox`-Tabelle überlebt die logische Raumlöschung. Vor jedem
 RPC wird die nächste Retry-Frist dauerhaft gesetzt. Nach bestätigtem `{ok:true}`
@@ -215,15 +218,20 @@ verbindlichen Stand. Acks setzen keine aktuellen IDs/Revisionen zurück. Nach
 Abbruch sperrt der maßgebliche `room.status` sämtliche Züge.
 
 Die normale Oberfläche zeigt keine technischen IDs, keine Rohzustände und keine
-Fixture-Schaltflächen. Namen und Servertexte werden als Text gerendert. Name und
-Raumcode bleiben ausschließlich im Arbeitsspeicher. Verlassen trennt nur die
+Fixture-Schaltflächen. Namen und Servertexte werden als Text gerendert. Die
+Spielerwahl wird optional im `sessionStorage` unter `multiplayer-player` für den
+aktuellen Tab gemerkt; blockierter Speicher führt zur erneuten Wahl nach dem
+Neuladen. Die Darstellung wird ebenfalls optional im Browserspeicher gemerkt.
+Die aktuelle Raumzuordnung bleibt im Arbeitsspeicher. Verlassen trennt nur die
 Verbindung, nicht den reservierten Spielerplatz. Die bestehende Fünf-Minuten-
 Frist und die Statistik-Outbox werden im Backend nicht verändert.
 
 `scripts/build-frontend.mjs` bereinigt ausschließlich den fest bestimmten
 Projektordner `release/`. Es bündelt mit `platform: browser`, `format: iife` und
 `splitting: false`, kopiert die HTML-Vorlage und CSS und liefert genau drei
-Dateien. Relative Assets und ein klassisches Skript mit `defer` erlauben direktes
+Dateien. Eine generierte PNG-Vorschau wird als Data-URL in das JavaScript-Bundle
+eingebettet und erfordert keine zusätzliche Release-Datei. Relative Assets und
+ein klassisches Skript mit `defer` erlauben direktes
 Öffnen über `file://` und das Verschieben des ganzen Ordners. Es gibt keine
 Laufzeit-Imports, lokalen fetch-Aufrufe, externen Assets oder Konfigurationsabrufe.
 HTTP-Anfragen gehen ausschließlich an das konfigurierte Backend; WS/WSS wird
@@ -236,9 +244,72 @@ in `tests/fixtures/frontend-local-config.js` und wird ausschließlich bei
 `--local-test` eingebündelt. Die normale Ausgabe enthält sie nicht.
 
 Statistikabrufe blockieren keine Partie. Nach einem regulären Sieg erfolgen
-höchstens drei Abrufe mit begrenzten Pausen; ansonsten nur beim Öffnen und auf
-manuelle Anforderung. Technische Diagnoseoberfläche, Backend und reguläre
-Serverkonfigurationen bleiben unverändert. Die eigenständige
+höchstens drei Abrufe mit begrenzten Pausen; weitere Auslöser sind Öffnen,
+Fensterfokus, Hub-Rückkehr und manuelle Anforderung. Die technische
+Diagnoseoberfläche bleibt separat erhalten. Die eigenständige
 [Übergabedokumentation](../handoff/README.md) ist seit Phase 8 vorhanden.
 Phase 8 ergänzt ausschliesslich Dokumentation und eine öffentliche
 Konfigurationsvorlage, ohne Funktionsänderung, Designumbau oder Deployment.
+
+
+## Spielhub — Phase 9 (07.11.2026)
+
+Der Hub zeigt ohne Seitennamen, Einleitung oder dauerhafte Spielerwahl nur die
+Spielkachel mit generierter Bildvorschau. Ben oder Joël werden beim ersten Öffnen
+im Tab in einem Dialog gewählt. Die Score-Namen öffnen diesen Dialog erneut;
+ein Spielerwechsel während der Spielansicht trennt die Verbindung und kehrt zum
+Hub zurück. Der eigene Name ist im Score dezent markiert. Die Zahlen öffnen den
+Score-Editor.
+
+Warme Papieroptik und erdige Farben bleiben für Hell, Dunkel und Büro erhalten.
+Der mittige Score hat im Hellmodus eine dunkle Fläche mit heller Schrift, im
+Dunkelmodus eine helle Fläche mit dunkler Schrift. Büro besitzt eigene Farb-
+und Gestaltungsregeln ohne globale Invertierungs- oder Graustufenfilter. Die
+Darstellungsauswahl liegt hinter einer kleinen Lasche oben rechts und öffnet per Hover,
+Fokus oder Antippen. Dezente Verschiebungs-, Licht- und Druckeffekte beachten
+`prefers-reduced-motion`.
+
+Die Spielkachel öffnet bei jedem Einstieg die Moduswahl. Classic verwendet
+`BEN-JOEL-TTT`, Fünf in einer Reihe `BEN-JOEL-TTT-15`; gleiche Modi treffen sich,
+verschiedene Modi bleiben getrennt. Der Hub
+verwendet die bestehende Create-API und tritt bei Erfolg oder ausschließlich
+`ROOM_EXISTS` bei. Gleichzeitige Klicks bleiben somit im selben Raum. Manuelles
+Reconnect wiederholt keinen Create. Rückkehr während einer ausstehenden Anlage
+verhindert mittels lokaler Generation den späteren unbeabsichtigten Join.
+
+In der Spielansicht öffnet `room-toggle` einen versteckten Raumdialog mit dem
+aktuellen Code. Erstellen übernimmt die gewählte Modus-Config; Beitreten übernimmt
+die tatsächliche öffentliche `room.config` des Servers, auch in der Lobby.
+Fehlgeschlagene Joins erzeugen keinen Raum. Eine manuelle Raumwahl gilt bis zum
+Verlassen dieser Spielansicht. Reconnect verwendet diesen Code ohne erneutes POST;
+der nächste Einstieg aus dem Hub fragt erneut nach dem Modus und nutzt dessen
+Standardraum. Rematches behalten die Config. Die globale Statistik trennt weder
+Spiele noch Modi.
+
+`PUT /api/stats` korrigiert 1–16 Zähler in einer SQLite-Transaktion. Alle
+`expectedWins` werden vor dem Schreiben geprüft. Konflikte liefern 409 statt
+Teilkorrekturen; negative, unsichere, gebrochene oder doppelte Werte werden
+abgelehnt. Bereits verarbeitete Match-IDs bleiben bei Reset erhalten. Die
+Statistik-RPC gibt HTTP-Status und Body explizit zurück, da benutzerdefinierte
+Error-Prototypen nicht über RPC erhalten bleiben.
+
+Zusätzlich zum bisherigen Laden bei Öffnen/Sieg wird bei Fensterfokus und
+Hub-Rückkehr aktualisiert. Während eines Speicherns eintreffende Nachladeanfragen
+werden danach ausgeführt; alte Antworten können den bestätigten Stand nicht
+zurücksetzen. Es gibt weiterhin kein Dauer-Polling. Fehler oder fehlende neue
+Online-API führen nicht zu lokalen Scheinkorrekturen.
+
+Die anschließende Verdichtung des Hubs änderte ausschließlich das Frontend.
+Die weitere Moduserweiterung ergänzt kompatibel unter derselben gameId, Version
+und Protokollversion optionale `modes` in `GET /api/games`, öffentliche `room.config`
+und die Ansichtsangaben `mode`, `boardSize`, `winLength`, `lastMove`. `{}` bleibt
+Classic; exakt `{mode:'classic'}` und `{mode:'five'}` sind ebenfalls gültig. Alte
+persistierte Classic-Zustände bleiben lesbar. Fehlen die neuen Metadaten auf einem
+älteren Backend, bietet das Frontend nur Classic an. Für 15×15 ist die neue
+Backend-Version nötig; diese Änderungen führen kein Deployment aus.
+
+Das große Brett liegt in einem responsiven Scrollbereich mit ausreichend großen
+Touchfeldern; Pfeiltasten und Home/End bewegen den Tastaturfokus. Die Darstellung
+nutzt weiterhin ausschließlich Serveransichten und entscheidet weder Regeln noch
+Gewinner. Fünf in einer Reihe erlaubt mindestens fünf gleiche Zeichen horizontal,
+vertikal oder entlang beider Diagonalen, ohne Eröffnungs- oder Verbotsregeln.

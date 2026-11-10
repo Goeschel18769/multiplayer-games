@@ -322,3 +322,111 @@ bleibt unbewiesen. In Phase 8 keine neuen öffentlichen Spiele oder Deployments.
 Die README beschreibt das private Repository, die Installation mit `npm ci`
 und den Unterschied zwischen versionierten Quellen und gebauter Spielausgabe.
 Es wurden keine Spielfunktionen geändert und keine öffentlichen Spiele gestartet.
+
+## Phase 9: Spielhub und Score-Korrektur — 07.11.2026
+
+- 40 Unit-Tests erfolgreich. Der App-Test verwendet den echten Bundle-Einstieg
+  und gleicht alle verwendeten DOM-IDs mit dem echten HTML ab. Abgedeckt sind
+  feste Namen, gemeinsamer Raum bei ROOM_EXISTS, kein Create-Replay,
+  Hub-Rückkehr während ausstehendem Create, drei Modi ohne Browserspeicher,
+  Score-Editor, Konflikte und Fehler ohne lokale Scheinspeicherung.
+- 22 Workerd-Integrationstests erfolgreich. Zusätzliche PUT-Tests prüfen strikte
+  Werte/Body-Grenzen, CORS, atomare Korrektur, konkurrierende Editoren,
+  zwischenzeitlichen Sieg und Reset unter Erhalt von processed_matches.
+  Der erste Sandboxlauf war wegen listen EPERM 127.0.0.1 blockiert;
+  der freigegebene Integrationstestlauf bestand vollständig.
+- `npm run check:deploy`: erfolgreicher Dry-Run, unveränderte zwei
+  Durable-Object-Bindings, kein Deployment. Logpfad in /private/tmp.
+- Tatsächliche Chrome-Prüfung auf macOS: kopierter lokaler Build unter
+  `/private/tmp/spielzeit-hub.xqVzIB/`, direkt über file:// und unabhängig
+  von release/. Isoliertes Backend auf 127.0.0.1:8789, Persistenz unter
+  `.wrangler/hub-preview-20261107/`. Zwei unabhängige Tabs: Ben und Joël
+  gelangen über die Spielkachel ohne Codeeingabe an denselben Tisch.
+  Ready/Start, fünf synchronisierte Züge, Joël-Sieg und Score-Erhöhung,
+  manuelle Korrektur auf 4:2 und anschliessender einzelner Reset auf 0
+  gespeichert. Rückkehr zum Hub und Theme-Wechsel geprüft.
+- Hell, Dunkel, eigenständiger Büro-Modus und Score-Dialog per Screenshot
+  geprüft. Der erste Browserlauf fand einen fehlenden HTML-ID-Eintrag;
+  behoben und durch die HTML-Prüfung im Unit-Test abgedeckt.
+- Öffentlicher Release-Build mit genau drei Dateien, öffentlicher Backend-URL
+  und ohne lokale Testadresse erstellt. Handoff-ZIP mit den sechs aktuellen
+  Dateien synchronisiert. Keine öffentlichen Matches, Score-Korrekturen oder
+  Deployments. Physische Mobilgeräte und andere Browser bleiben ungeprüft.
+
+Die Darstellung ist responsiv implementiert; dies ist kein Nachweis auf einem
+physischen Mobilgerät. Die Score-API-Erweiterung ist lokal vollständig geprüft,
+benötigt aber ein Deployment, bevor sie öffentlich genutzt werden kann.
+
+
+## Hub-Vereinfachung — 07.11.2026
+
+`npm test`: **49 Unit-Tests und 22 Workerd-Integrationstests**, vollständig
+bestanden. 14 App-Tests verwenden das echte Bundle und eine aus dem tatsächlichen
+HTML abgeleitete DOM-Struktur. Neu geprüft sind der verpflichtende Popup-Start,
+Tab-Speicherung/Fallback, Wechsel ohne Übernahme eines anderen Spielersitzes,
+Theme-Lasche per Hover/Touch/Fokus/Escape, manuelle Raumcodes und Reconnect,
+getrenntes Create/Join, Erhalt der bestehenden Verbindung bei abgelehnter Anlage
+und verworfene Antworten nach Schliessen oder Verlassen. Der kurze Lobby-Status
+wurde anschliessend mit den 14 App-Tests erneut geprüft.
+
+Echte Chrome-Prüfung über file:// mit kopierter Ausgabe unter
+`/private/tmp/hub-refinement.OMOqV0/` und isolierter Persistenz
+`.wrangler/hub-refinement-20261107/` auf Port 8789: Auswahl von Ben wird beim
+Neuladen desselben Tabs erhalten. Der bereinigte Hub sowie Score-Kontrast im
+Hell-/Dunkelmodus wurden per Screenshot geprüft. Ben erstellt manuell
+`BEN-JOEL-ZWEIT`, Joël tritt im zweiten Tab bei; beide sind dort online.
+Nach Rückkehr zum Hub führt die Kachel wieder nach `BEN-JOEL-TTT`, im
+Raumdialog sichtbar bestätigt. Responsive Vorschau bei 320 CSS-Pixel Breite
+per Screenshot geprüft. Kein physischer Mobilgerätetest und kein neuer
+systematischer Vergleich anderer Browser; Eingabemethoden sind durch DOM-Tests und die Reduced-Motion-Regeln durch
+Codeprüfung abgedeckt.
+
+Keine Backend-Änderung oder Deployment in dieser Verfeinerung. Die vorherige
+Score-API-Erweiterung benötigt weiterhin ein eigenes öffentliches Deployment.
+
+Öffentlicher Release-Build abschliessend erstellt (genau drei Dateien, keine lokale
+Testadresse); Handoff-ZIP mit den sechs aktuellen Dateien synchronisiert.
+
+## Tic-Tac-Toe-Modi und Spielansicht — 07.11.2026
+
+- `npm test`: **85 Unit-Tests und 23 Workerd-Integrationstests**, alle bestanden.
+  Die Erweiterung umfasst Classic-/15×15-Regeln, mindestens fünf in beiden
+  Diagonalrichtungen, längere Gewinnlinien, Altzustände, öffentliche Config und
+  Modusmetadaten sowie Moduswahl, Standardräume und Übernahme des Servermodus.
+  Ein vollständiger 15×15-Ablauf bis Sieg, Reconnect und Rematch ist automatisiert
+  in der produktiven Workerd-Engine geprüft.
+- Nach der anschließenden Korrektur der Ready-/Start-Anzeige wurden die
+  **20 App-Tests** erneut erfolgreich ausgeführt. Diese Tests verwenden DOM-
+  und Transport-Doubles; die Browserprüfung ist separat aufgeführt.
+- `npm run check:deploy`: erfolgreicher Deployment-Dry-Run, kein Deployment.
+  Der Build-Test bestätigt die eingebettete PNG als Data-URL und weiterhin genau
+  `index.html`, `app.js` und `style.css`, ohne zusätzliche Laufzeit-Bilddatei.
+- Tatsächliche UI-Prüfung in Google Chrome auf macOS mit einer unabhängig
+  kopierten lokalen Ausgabe unter `/private/tmp/ttt-modes.KhFhSv/`, direkt über
+  `file://`. Isoliertes Backend auf Port 8789 mit Persistenz unter
+  `.wrangler/ttt-modes-20261107/`; keine öffentlichen Matches oder Score-Eingriffe.
+- Zwei Tabs für Ben und Joël: Die Kachel öffnet verpflichtend die Moduswahl.
+  Classic führt beide in denselben Raum. Ready/Start, fünf synchronisierte Züge,
+  Joël-Sieg, Score `0:1` und markierte Gewinnlinie wurden im Browser geprüft.
+- 15×15 führt beide in denselben, von Classic getrennten Raum. Ready/Start,
+  X auf dem mittleren Feld 112 und Zugwechsel sind im Browser bestätigt.
+  Pfeil rechts bewegt den Tastaturfokus; `Ctrl+End` fokussiert Zeile 15/Spalte 15
+  und scrollt das Feld in den sichtbaren Brettbereich.
+- Screenshots bei 320 CSS-Pixel Breite prüfen Modusdialog, abgeschlossene
+  Classic-Partie und 15×15. Hell, Dunkel und Büro wurden visuell geprüft;
+  im Büro-Modus zusätzlich die gewonnene 3×3-Ansicht und der Hub bei 320 Pixeln
+  mit eigenen Grauschiefer-Flächen, Linien und Zeichen sowie dezenter Vorschau.
+  Die Chrome-Konsole zeigte ausschließlich die erwarteten HTTP-409-Antworten
+  `ROOM_EXISTS`, keine JavaScript-Ausnahmen.
+
+Offen bleiben physische Touchgeräte und andere Browser. Die schmale Chrome-
+Ansicht ersetzt keinen Hardwaretest. Ein vollständiger 15×15-Sieg wurde in dieser
+UI-Prüfung nicht ausgespielt; dafür besteht der automatisierte Nachweis oben.
+Der lokale Test-Build belegt keine öffentliche Bereitstellung der neuen
+Backend-Funktionen; ein Deployment wurde nicht durchgeführt.
+
+Abschluss: beide Testtabs geschlossen und den lokalen Testserver beendet.
+`npm run build` erzeugt wieder die Ausgabe mit öffentlicher Backend-Adresse:
+genau drei Dateien, PNG eingebettet, keine lokale Testadresse oder Laufzeit-Imports.
+Die sechs Übergabedateien wurden erneut in `handoff.zip` gepackt und bytegleich
+verglichen; `git diff --check` erfolgreich.
