@@ -293,11 +293,16 @@ es werden keine nur lokal vorgetäuschten Score-Änderungen gespeichert.
 **15×15 benötigt ebenfalls das erweiterte Backend.** Die Spielmetadaten liefern
 dafür optional `modes`; ohne diese Angabe bietet das Frontend ausschließlich
 Classic an. Die Moduserweiterung bleibt bei `tic-tac-toe`, Version `1`, und
-Protokoll v1. Ein Deployment ist nicht Teil dieser Änderung.
+Protokoll v1.
 
 **4 Gewinnt benötigt die neue Backend-Registry.** Die Kachel ist erst spielbar,
 wenn `/api/games` `connect-four`, Version `1`, meldet. Ein GitHub-Release
 aktualisiert den Cloudflare-Worker nicht; dessen Deployment bleibt getrennt.
+
+Am **10.11.2026** wurde das geprüfte Backend nach Freigabe veröffentlicht.
+Die öffentliche Spieleliste bestätigt `tic-tac-toe` mit beiden Modi und
+`connect-four`, jeweils Version `1`; `/health` bestätigt `{"ok":true}`.
+Die aktuelle Download-Ausgabe kann damit 4 Gewinnt online anbieten.
 
 ## Spieloberfläche und Diagnoseoberfläche
 

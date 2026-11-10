@@ -91,7 +91,7 @@ massgeblich, besonders bei aborted. Keine
 lokale Gewinnerberechnung. Score-Korrekturen ausschließlich bewusst über
 PUT /api/stats mit expectedWins und atomarer Konfliktbehandlung; kein lokales
 Vortäuschen einer erfolgreichen Speicherung. Die Score-API und die 15×15-
-Erweiterung müssen öffentlich erst deployt werden; fehlende Unterstützung
+Erweiterung sind mit 4 Gewinnt am 10.11.2026 nach Freigabe deployt worden. Fehlende Unterstützung
 verständlich anzeigen. Statistikfehler
 dürfen eine Partie nicht blockieren; verzögerte Siege mit begrenzten erneuten
 Abrufen und manueller Aktualisierung behandeln. Spielauswahl und Darstellung

@@ -31,7 +31,9 @@ Außerdem **4 Gewinnt**, ID `connect-four`, Version `1`, zwei Spieler,
 waagrecht, senkrecht oder diagonal. Config ist exakt `{}`; direkter Standardraum
 `BEN-JOEL-C4`. Siege beider Spiele zählen zusammen. Die neue Engine benötigt ein
 separates Backend-Deployment; ältere Backends lassen die Kachel deaktiviert.
-Das allgemeine
+Das Backend wurde am 10.11.2026 nach Freigabe veröffentlicht; die öffentliche
+Spieleliste bestätigt nun beide produktiven Engines einschließlich beider
+Tic-Tac-Toe-Modi. Healthcheck erfolgreich. Das allgemeine
 Raumframework ist nicht grundsätzlich auf zwei Spieler beschränkt.
 
 Technik: HTML, CSS und Vanilla JavaScript mit ES-Modulen in den Quellen, kein

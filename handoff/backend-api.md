@@ -3,7 +3,10 @@
 Stand 10.11.2026, aus dem lokalen Implementierungsstand abgeleitet. Öffentliche
 Basis-URL: **https://multiplayer-games.haldimann-joel.workers.dev**.
 Alle Beispiele sind illustrative Daten, keine Live-Antworten und keine Zusage
-über bestehende öffentliche Räume oder Zählerstände. Die Beispielpartie am Ende
+über bestehende öffentliche Räume oder Zählerstände. Nach freigegebenem Deployment
+am 10.11.2026 bestätigt die öffentliche Spieleliste beide Engines; der Healthcheck
+liefert `{"ok":true}`. Es wurden keine öffentlichen Testpartien gespielt.
+Die Beispielpartie am Ende
 ist in sich konsistent. Sie setzt einen freien Raumcode und leere Statistik voraus.
 
 ## HTTP

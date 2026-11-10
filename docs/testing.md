@@ -472,3 +472,23 @@ Ein zusätzlicher read-only Abruf der öffentlichen Spieleliste aus dem lokalen
 Prüfprozess lieferte HTTP 403. Dieser Abruf belegt daher keine aktuelle
 öffentliche Engine-Verfügbarkeit. 4 Gewinnt benötigt das aktualisierte Backend;
 eine neue Frontend-Ausgabe allein stellt die Engine nicht online bereit.
+
+
+### Öffentliches Backend nach Freigabe — 10.11.2026
+
+Der Nutzer hat das Deployment des laufenden Cloudflare-Workers ausdrücklich
+freigegeben. `wrangler deploy --config backend/wrangler.jsonc` war erfolgreich:
+Version `b8e4f023-ee78-44a0-8130-cfd9540fe17b`, Worker `multiplayer-games`,
+weiterhin die beiden Bindings GAME_ROOMS und GLOBAL_STATS.
+Anschließend mit curl read-only über HTTPS geprüft: `/health` liefert
+`{"ok":true}` und `/api/games` liefert `tic-tac-toe`, Version 1 mit Classic/Five,
+sowie `connect-four`, Version 1, je zwei Spieler. Die öffentliche Bereitstellung
+ist damit bestätigt; der vorherige HTTP-403-Abruf aus Python bleibt ein
+historischer gescheiterter Prüfversuch. Es wurden keine öffentlichen Testmatches
+oder Score-Änderungen erzeugt. Der lokale vollständige Spieltest bleibt oben
+separat dokumentiert.
+
+GitHub-Release v1.0.1 wurde automatisiert erstellt; sein heruntergeladenes ZIP
+wurde bytegleich mit dem lokal geprüften öffentlichen Build verglichen. Es enthält
+exakt index.html, app.js und style.css. Der ergänzende Dokumentations-Push nutzt
+weiterhin denselben automatischen Release-Workflow.
