@@ -38,6 +38,21 @@ Aktion {kind:'drop',column:0}, Spaltenindex 0–6. Die Spieleransicht und Farben
 sind in backend-api.md beschrieben. Nur bei passender Backend-Metadatenversion
 freischalten; ältere Backends zeigen eine deaktivierte Kachel.
 
+Die dritte Kachel ist Schiffe versenken, gameId battleship, Version "1", Config
+exakt {}, Standardraum BEN-JOEL-SHIPS, kein Modusdialog. 10×10 Felder, L-Schiff
+mit fünf Feldern (XXX / X.. / X..) und gerade Schiffe 4, 3, 3, 2. Vier Drehungen,
+Berührung erlaubt, keine Überlappung. Eigene Platzierung plus Zufallsplatzierung,
+Flotte bestätigen, dann Schussphase. Treffer behält den Zug; Wasser wechselt ihn.
+Nur tatsächliche Treffer/Fehlschüsse markieren, keine Nachbarn. Eigene Flotte
+und Gegner am Desktop nebeneinander, mobil umschaltbar. Gegnerische Positionen
+nur entsprechend der privaten Serveransicht anzeigen; keine fremden Flotten
+im Browser speichern. Eigene Entwürfe dürfen im RAM je Raum/Match/Spieler einen
+Reconnect überstehen; neue Matches beginnen leer. Aktionen placeFleet und fire
+sowie genaue Views sind in backend-api.md beschrieben. Erste eigene
+Flottenbestätigung darf eine ältere Revision verwenden, alle Schüsse bleiben
+strikt. Konturen halten berührende bekannte Schiffe erkennbar. Tastatur:
+Pfeile/Home/End über Felder, R zum Drehen. Dritte PNG-Vorschau inline bündeln.
+
 Verwende HTML, CSS und Vanilla JavaScript, kein TypeScript. Die Entwicklungsquellen
 sollen ES-Module verwenden. Erzeuge einen eigenständigen Release-Ordner mit
 relativen lokalen Assets und einem klassischen gebündelten JavaScript-Skript
@@ -78,7 +93,7 @@ Code und getrennten Aktionen für Erstellen und Beitreten. Erstellen verwendet
 den gewählten Modus, Beitreten übernimmt den tatsächlichen Servermodus aus der
 öffentlichen room.config, schon in der Lobby. Manuelle Raumwahl gilt nur für
 diese Spielansicht. Bei Tic Tac Toe fragt der nächste Kacheleinstieg erneut den
-Modus ab; 4 Gewinnt öffnet direkt seinen Standardraum. Reconnect behält den aktuellen Code und wiederholt
+Modus ab; 4 Gewinnt und Schiffe versenken öffnen direkt ihren Standardraum. Reconnect behält den aktuellen Code und wiederholt
 keinen Create-POST; Rematch behält die Raumconfig. Die Statistik zählt beide Modi
 zusammen nach Namen.
 
@@ -91,7 +106,7 @@ massgeblich, besonders bei aborted. Keine
 lokale Gewinnerberechnung. Score-Korrekturen ausschließlich bewusst über
 PUT /api/stats mit expectedWins und atomarer Konfliktbehandlung; kein lokales
 Vortäuschen einer erfolgreichen Speicherung. Die Score-API und die 15×15-
-Erweiterung sind mit 4 Gewinnt am 10.11.2026 nach Freigabe deployt worden. Fehlende Unterstützung
+Erweiterung sowie alle drei Engines sind am 10.11.2026 nach Freigabe deployt worden. Fehlende Unterstützung
 verständlich anzeigen. Statistikfehler
 dürfen eine Partie nicht blockieren; verzögerte Siege mit begrenzten erneuten
 Abrufen und manueller Aktualisierung behandeln. Spielauswahl und Darstellung

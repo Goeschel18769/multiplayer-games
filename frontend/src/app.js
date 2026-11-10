@@ -8,12 +8,14 @@ import { gamePresentation, supportedGame, supportedMode } from './games/registry
 import { TTT_MODES } from './games/tic-tac-toe-modes.js';
 import previewImage from './assets/tic-tac-toe-preview.png';
 import connectFourPreview from './assets/connect-four-preview.png';
+import battleshipPreview from './assets/battleship-preview.png';
 
 const $ = id => document.getElementById(id);
 const api = createApi(CONFIG);
 const names = { ben: 'Ben', joel: 'Joël' };
 $('ttt-preview-image').src = previewImage;
 $('c4-preview-image').src = connectFourPreview;
+$('bs-preview-image').src = battleshipPreview;
 let selectedPlayer = null;
 let activeGameId = 'tic-tac-toe';
 let activeMode = 'classic';
@@ -239,6 +241,7 @@ function openModeDialog() {
 }
 $('game-tic-tac-toe').addEventListener('click', openModeDialog);
 $('game-connect-four').addEventListener('click', () => openGame('connect-four'));
+$('game-battleship').addEventListener('click', () => openGame('battleship'));
 $('play-mode').addEventListener('click', openModeDialog);
 $('close-mode-dialog').addEventListener('click', closeModeDialog);
 $('mode-dialog').addEventListener('cancel', event => {
@@ -385,6 +388,7 @@ function render() {
   }
   $('game-tic-tac-toe').disabled = creating || gamesBusy || !games.some(game => game.id === 'tic-tac-toe' && supportedGame(game));
   $('game-connect-four').disabled = creating || gamesBusy || !games.some(game => game.id === 'connect-four' && supportedGame(game));
+  $('game-battleship').disabled = creating || gamesBusy || !games.some(game => game.id === 'battleship' && supportedGame(game));
   $('reload-games').disabled = gamesBusy;
   for (const key of Object.keys(names)) {
     const selected = key === selectedPlayer;
@@ -423,7 +427,7 @@ function render() {
   }
   const own = room?.players.find(player => player.playerId === playerId);
   const lobby = room?.status.type === 'lobby' && snapshot.matchId === null;
-  const gameOwnsStatus = ['tic-tac-toe', 'connect-four'].includes(room?.gameId) && !lobby && snapshot?.view != null;
+  const gameOwnsStatus = ['tic-tac-toe', 'connect-four', 'battleship'].includes(room?.gameId) && !lobby && snapshot?.view != null;
   $('players').hidden = gameOwnsStatus;
   const metadata = games.find(game => game.id === room?.gameId && supportedGame(game));
   $('ready').hidden = !lobby;

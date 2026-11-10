@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { build } from 'esbuild';
 import { Miniflare, Log, LogLevel } from 'miniflare';
 import { readFile } from 'node:fs/promises';
+import { fleetA, fleetB, cellsA, cellsB } from '../fixtures/battleship.js';
 
 let mf, productionMf, rooms, stats;
 let sequence = 0;
@@ -315,6 +316,7 @@ test('Produktionsbundle: produktive Spiele registriert, Fixture und Test-RPCs ni
       { id: 'classic', boardSize: 3, winLength: 3 }, { id: 'five', boardSize: 15, winLength: 5 },
     ] },
     { id: 'connect-four', version: '1', minPlayers: 2, maxPlayers: 2 },
+    { id: 'battleship', version: '1', minPlayers: 2, maxPlayers: 2 },
   ]);
   assert.deepEqual(await (await worker.fetch('http://localhost/health')).json(), { ok: true });
   const response = await worker.fetch('http://localhost/api/rooms', { method: 'POST',
@@ -721,6 +723,97 @@ test('Produktives 4 Gewinnt: Schwerkraft, volle Spalte, Reconnect, Sieg, Draw, R
   await eventually(readStats, rows => total(rows) === 2);
   assert.equal(state.room.status.type, 'draw'); assert.equal(state.view.board.filter(Boolean).length, 42);
   for (const c of [...clients, ...ttt]) c.ws.close(1000, 'Done');
+});
+
+test('Produktives Schiffe versenken: gleichzeitige Flotten, private Ansichten, Reconnect, Treffer, Sieg und Rematch', async () => {
+  const fetcher = (path, options) => productionMf.dispatchFetch(`http://localhost${path}`, options);
+  const readStats = async () => (await fetcher('/api/stats')).json();
+  const roomCode = `SHIPS-${++sequence}`, names = [`ShipBen-${sequence}`, `ShipJoel-${sequence}`];
+  const createGame = config => fetcher('/api/rooms', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ roomCode, gameId: 'battleship', config }) });
+  const invalid = await createGame({ size: 9 }); assert.equal((await invalid.json()).code, 'INVALID_CONFIG');
+  assert.equal((await createGame({})).status, 201);
+  const clients = [await join(roomCode, names[0], fetcher), await join(roomCode, names[1], fetcher)];
+  for (const c of clients) { assert.equal(c.welcome.view, null); await c.command('ready', { ready: true }); }
+  let views, state;
+  async function synchronized(ack) {
+    assert.equal(ack.type, 'ack');
+    views = await Promise.all(clients.map(c => c.next(m => m.type === 'state' && m.matchId === ack.matchId && m.revision === ack.revision)));
+    assert.deepEqual(views[0].room, views[1].room); state = views[0];
+  }
+  await synchronized(await clients[0].command('start'));
+  const firstStarter = state.room.startingPlayerId;
+  const action = (action, expectedRevision = state.revision) => ({ matchId: state.matchId, expectedRevision, action });
+  assert.equal(state.view.phase, 'placement'); assert.equal(state.view.currentPlayerId, null);
+  assert.equal((await clients[0].command('action', action({ kind: 'fire', cell: 99 }))).code, 'INVALID_ACTION');
+  assert.equal((await clients[0].command('action', action({ kind: 'placeFleet', ships: fleetA }, 1))).code, 'STALE_REVISION');
+  const overlap = structuredClone(fleetA); overlap[1].cell = 0;
+  assert.equal((await clients[0].command('action', action({ kind: 'placeFleet', ships: overlap }))).code, 'INVALID_ACTION');
+  const placed = await Promise.all(clients.map((c, index) => c.command('action', action({ kind: 'placeFleet', ships: index === 0 ? fleetA : fleetB }, 0))));
+  assert.ok(placed.every(ack => ack.type === 'ack'));
+  assert.deepEqual(placed.map(ack => ack.revision).sort(), [1,2]);
+  await synchronized(placed.find(ack => ack.revision === 2));
+  assert.equal(state.view.phase, 'battle'); assert.equal(state.view.currentPlayerId, firstStarter);
+  for (let index = 0; index < 2; index++) {
+    assert.deepEqual(views[index].view.ownShips.map(ship => ship.cells), index === 0 ? cellsA : cellsB);
+    assert.deepEqual(views[index].view.targetBoard, Array(100).fill('unknown'));
+    assert.deepEqual(views[index].view.opponentShips, []);
+    assert.equal(Object.hasOwn(views[index].view, 'players'), false);
+  }
+  assert.equal((await clients[0].command('action', action({ kind: 'placeFleet', ships: fleetB }, 0))).code, 'STALE_REVISION');
+  assert.equal((await clients[0].command('action', action({ kind: 'placeFleet', ships: fleetB }))).code, 'INVALID_ACTION');
+  const current = () => clients.find(c => c.welcome.playerId === state.view.currentPlayerId);
+  assert.equal((await clients.find(c => c !== current()).command('action', action({ kind: 'fire', cell: 99 }))).code, 'INVALID_ACTION');
+  assert.equal((await current().command('action', action({ kind: 'fire', cell: 99 }, 1))).code, 'STALE_REVISION');
+  const shot = async cell => { const ack = await current().command('action', action({ kind: 'fire', cell })); await synchronized(ack); };
+  await shot(99); assert.notEqual(state.view.currentPlayerId, firstStarter);
+  const attackerIndex = clients.findIndex(c => c === current()), defenderIndex = 1 - attackerIndex;
+  const targets = attackerIndex === 0 ? cellsB : cellsA;
+  const attackerId = current().welcome.playerId;
+  await shot(targets[0][0]); assert.equal(state.view.currentPlayerId, attackerId);
+  assert.equal(views[attackerIndex].view.targetBoard[targets[0][0]], 'hit');
+  assert.equal(views[defenderIndex].view.ownBoard[targets[0][0]], 'hit');
+  assert.deepEqual(views[attackerIndex].view.opponentShips, []);
+  assert.equal((await current().command('action', action({ kind: 'fire', cell: targets[0][0] }))).code, 'INVALID_ACTION');
+
+  const old = clients[defenderIndex]; old.ws.close(1000, 'Private reconnect');
+  clients[defenderIndex] = await join(roomCode, names[defenderIndex], fetcher);
+  const welcome = clients[defenderIndex].welcome;
+  assert.equal(welcome.playerId, old.welcome.playerId); assert.equal(welcome.revision, state.revision);
+  assert.deepEqual(welcome.view.ownBoard, views[defenderIndex].view.ownBoard);
+  assert.deepEqual(welcome.view.opponentShips, []);
+  for (const cell of targets[0].slice(1)) await shot(cell);
+  assert.equal(views[attackerIndex].view.remaining.opponent, 4);
+  assert.deepEqual(views[attackerIndex].view.opponentShips, [{ index: 0, cells: targets[0], sunk: true }]);
+  assert.equal(views[attackerIndex].view.targetBoard[targets[1][0]], 'unknown');
+  assert.equal(views[attackerIndex].view.targetBoard.filter(value => value !== 'unknown').length, 5);
+  for (const c of clients) for (const frame of c.messages.filter(m => m.view && m.view.phase !== 'finished')) {
+    assert.ok(frame.view.opponentShips.every(ship => ship.sunk)); // kein Rohzustand in Welcome/State
+    assert.equal(Object.hasOwn(frame.view, 'fleet'), false);
+  }
+  const rest = targets.slice(1).flat();
+  for (const cell of rest.slice(0,-1)) await shot(cell);
+  const finisher = current(), finalMove = { v: 1, type: 'action', requestId: 'ships-finish-once', ...action({ kind: 'fire', cell: rest.at(-1) }) };
+  finisher.send(finalMove); const finished = await finisher.next(m => m.requestId === finalMove.requestId); await synchronized(finished);
+  assert.deepEqual(state.room.status, { type: 'won', winnerPlayerId: attackerId });
+  assert.equal(state.view.phase, 'finished'); assert.equal(state.view.currentPlayerId, null);
+  assert.equal(views[attackerIndex].view.remaining.opponent, 0); assert.equal(views[defenderIndex].view.opponentShips.length, 5);
+  const winner = state.room.players.find(player => player.playerId === attackerId);
+  const wins = await eventually(readStats, rows => rows.find(row => row.nameKey === winner.displayName.toLowerCase())?.wins === 1);
+  finisher.send(finalMove); assert.deepEqual(await finisher.next(m => m.requestId === finalMove.requestId), finished);
+  assert.deepEqual(await readStats(), wins);
+  assert.equal((await finisher.command('action', action({ kind: 'fire', cell: 98 }))).code, 'MATCH_NOT_RUNNING');
+  const oldMatch = state.matchId; let rematch;
+  for (const c of clients) rematch = await c.command('rematch', { matchId: oldMatch });
+  await synchronized(rematch); assert.notEqual(state.matchId, oldMatch); assert.notEqual(state.room.startingPlayerId, firstStarter);
+  for (const view of views) { assert.equal(view.view.phase, 'placement'); assert.equal(view.view.yourReady, false); assert.deepEqual(view.view.ownShips, []); assert.deepEqual(view.view.targetBoard, Array(100).fill('unknown')); }
+  await synchronized(await clients[0].command('action', action({ kind: 'placeFleet', ships: fleetA })));
+  await synchronized(await clients[0].command('abort', { matchId: state.matchId }));
+  assert.equal(state.room.status.type, 'aborted'); assert.deepEqual(views[1].view.opponentShips, []);
+  assert.deepEqual(views[1].view.targetBoard, Array(100).fill('unknown'));
+  assert.equal((await clients[1].command('action', action({ kind: 'placeFleet', ships: fleetB }, 0))).code, 'MATCH_NOT_RUNNING');
+  assert.deepEqual(await readStats(), wins);
+  for (const c of clients) c.ws.close(1000, 'Done');
 });
 
 test('Siegestand per HTTP: atomare Korrektur, Konflikte, Reset ohne erneutes Zählen alter Siege', async () => {

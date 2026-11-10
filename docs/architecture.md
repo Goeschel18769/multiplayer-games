@@ -6,7 +6,7 @@ Ein npm-Projekt im Hauptordner verwaltet Backend, Frontend und Tests mit einer
 `package.json` und einer Lockdatei. Der Code verwendet JavaScript-ES-Module, kein
 TypeScript. Das Frontend besteht aus HTML, CSS und modularen Vanilla-JavaScript-
 Quellen; esbuild erzeugt einen portablen `release/`-Ordner mit drei Dateien.
-Tic Tac Toe und 4 Gewinnt sind als produktive Engines implementiert und über die Spieloberfläche
+Tic Tac Toe, 4 Gewinnt und Schiffe versenken sind als produktive Engines implementiert und über die Spieloberfläche
 bedienbar. Die technische Diagnoseoberfläche bleibt separat erhalten.
 
 Das Backend besteht aus einem Cloudflare Worker, SQLite-basierten Durable Objects
@@ -15,6 +15,8 @@ Engine-Registry enthält `tic-tac-toe` (Version 1, genau zwei Spieler) mit Class
 (3×3, Gewinnlänge 3) und Fünf in einer Reihe (15×15, Gewinnlänge mindestens 5).
 Außerdem ist `connect-four` (Version 1, zwei Spieler, 7 Spalten × 6 Reihen,
 Schwerkraft und mindestens vier in einer Reihe) registriert.
+`battleship` (Version 1, zwei Spieler) ergänzt ein privates 10×10-Spiel mit
+L-Schiff und vier geraden Schiffen, Berührung erlaubt, Treffer behält den Zug.
 Unbekannte Engines liefern `UNKNOWN_GAME`. Die produktive Engine wird ebenso
 wie das allgemeine Framework mit echten Workerd-Integrationstests geprüft.
 Die getrennte 2–4-Spieler-Fixture bleibt ausschließlich in Testkonfigurationen.
@@ -29,11 +31,11 @@ Die getrennte 2–4-Spieler-Fixture bleibt ausschließlich in Testkonfiguratione
 | `backend/src/core/` | Allgemeiner Spielablauf, synchroner Engine-Vertrag, JSON-Prüfung, sichere Zustandsübergänge und individuelle Ansichten. |
 | `backend/src/protocol/` | Strikte Nachrichtenschemas, Fehlercodes, HTTP-Antworten und begrenztes Body-Lesen. |
 | `backend/src/stats/` | `GlobalStats`: dauerhafte globale Siege und Ergebnis-Deduplizierung in SQLite. |
-| `backend/src/games/` | Zentrale Engine-Registry und reine Engines für Tic Tac Toe und 4 Gewinnt. |
+| `backend/src/games/` | Zentrale Engine-Registry und reine Engines für Tic Tac Toe, 4 Gewinnt und Schiffe versenken. |
 | `frontend/` | HTML-Vorlage und Styles der normalen deutschsprachigen Spieloberfläche. |
 | `frontend/src/` | ES-Modul-Einstieg und öffentliche Backend-/Protokollkonfiguration. |
 | `frontend/src/core/` | HTTP, allgemeiner Raum-/Verbindungszustand, Protokollprüfung und unabhängige Statistikabrufe. |
-| `frontend/src/games/` | Zentrale Darstellungs-Registry und Ansichten für beide Spiele ohne Engine-Import oder Gewinnerberechnung. |
+| `frontend/src/games/` | Zentrale Darstellungs-Registry und Ansichten für alle Spiele ohne Engine-Import oder Gewinnerberechnung; lokale Schiffsplatzierung als Eingabehilfe. |
 | `shared/` | Gemeinsame Einstellungen, Namens- und Raumcode-Normalisierung. |
 | `scripts/` | Frontend-Build mit esbuild und festem Ausgabeverzeichnis. |
 | `tests/unit/` | Node-Tests für Normalisierung, Protokoll und Engine-Vertrag. |
@@ -332,3 +334,24 @@ steuern einen einzigen Tabstopp. Weniger Bewegung wird per CSS berücksichtigt.
 Braune Flächen und Zeichen besitzen eigenständige Hell-/Dunkel-/Büro-Werte.
 Auch die zweite PNG-Vorschau wird inline gebündelt; drei Release-Dateien bleiben
 erhalten, das GitHub-Release liefert weiterhin ZIP und drei Einzeldateien.
+
+
+## Schiffe versenken — 10.11.2026
+
+Die dritte produktive Engine `battleship` verwendet individuelle Spieleransichten,
+damit die fremde Flotte serverseitig verborgen bleibt. Die allgemeine Match-Logik
+akzeptiert optional die reine Engine-Freigabe `canApplyStaleAction` nur bei älteren
+Revisionen. Diese Engine erlaubt ausschließlich die erste eigene Flottenabgabe
+in der Platzierungsphase; normale Züge bleiben strikt. Transport, Outbox,
+Statistik, Deduplizierung und Raumfristen gelten unverändert.
+
+Die dritte Hub-Kachel öffnet direkt `BEN-JOEL-SHIPS`. Der Renderer erhält nur
+gefilterte Ansichten. Ein eigenes Hilfsmodul validiert lokale Platzierungsentwürfe
+und erzeugt Zufallsflotten; der Server prüft jede Bestätigung erneut. Im RAM
+bleiben höchstens acht eigene Entwürfe je Rauminstanz/Match/Spieler erhalten,
+auch über einen Reconnect derselben Seite; kein Speicherzwang und kein Zugriff
+auf fremde Positionen. Neue Matches beginnen leer. Desktop zeigt beide Bretter,
+schmale Ansichten bieten einen Wechsel zwischen Gegner und eigener Flotte.
+Native Feldbuttons, Pfeile/Home/End und R zum Drehen ergänzen die Tippbedienung.
+Berührende bekannte Schiffe bleiben durch Konturen getrennt erkennbar.
+Auch die dritte Imagegen-PNG wird inline eingebettet: weiterhin drei Dateien.

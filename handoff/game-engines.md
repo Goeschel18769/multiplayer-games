@@ -3,7 +3,7 @@
 Stand 10.11.2026. Diese Beschreibung dokumentiert den lokalen Vertrag. Für ein
 reines neues Frontend reicht der [API-Vertrag](backend-api.md); eine neue Engine
 ist nur bei einem späteren zusätzlichen Spiel nötig. Produktiv existieren
-`tic-tac-toe` und `connect-four`, je Version `1`, `minPlayers: 2`, `maxPlayers: 2`.
+`tic-tac-toe`, `connect-four` und `battleship`, je Version `1`, `minPlayers: 2`, `maxPlayers: 2`.
 Für Tic Tac Toe gilt: Config `{}` oder
 exakt `{"mode":"classic"}` wählt Classic (3×3, Gewinnlänge 3); exakt
 `{"mode":"five"}` wählt 15×15 mit mindestens fünf in einer Reihe. Keine
@@ -12,8 +12,8 @@ Siege gemeinsam nach Namen und behalten die Config bei Rematches.
 
 ## Objekt und Funktionen
 
-Eine Engine ist ein JavaScript-Objekt mit den folgenden Feldern (`modes` ist
-optional, die übrigen sind Pflichtfelder). Alle
+Eine Engine ist ein JavaScript-Objekt mit den folgenden Feldern (`modes` und
+`canApplyStaleAction` sind optional, die übrigen sind Pflichtfelder). Alle
 Funktionen werden synchron als Methoden der Engine aufgerufen, ohne Promises.
 
 | Feld / Signatur | Vertrag und Rückgabe |
@@ -28,6 +28,7 @@ Funktionen werden synchron als Methoden der Engine aufgerufen, ohne Promises.
 | `handleAction(state, playerId, action)` | Neuer JSON-Zustand; ungültige Aktion durch Throw ablehnen. |
 | `getPlayerView(state, playerId)` | JSON-Ansicht ausschliesslich für diesen Empfänger. |
 | `getStatus(state)` | Exakt eines der unten gezeigten Statusobjekte. |
+| `canApplyStaleAction(state, playerId, action)` (optional) | Exakt `true` erlaubt eine ältere Revision für eine unabhängige Aktion; Details unten. |
 
 `players` ist die beim Start eingefrorene Teilnehmerliste mit jeweils
 `playerId`, `displayName`, `nameKey`. `context` enthält exakt `matchId` und
@@ -94,7 +95,7 @@ Gewinnlinie mit mindestens fünf Feldern horizontal, vertikal oder diagonal.
 
 Im Backend liegt die zentrale Registry in `backend/src/games/registry.js`.
 Eine neue reine Engine unter `backend/src/games/` implementieren, importieren und
-der bestehenden Liste `createRegistry([ticTacToe, connectFour, weitereEngine])` hinzufügen.
+der bestehenden Liste `createRegistry([ticTacToe, connectFour, battleship, weitereEngine])` hinzufügen.
 assertEngine prüft Metadaten/Funktionen, doppelte IDs sind unzulässig.
 registry.get(id) liefert die Engine oder UNKNOWN_GAME; list() veröffentlicht nur
 id, version, minPlayers, maxPlayers und gegebenenfalls modes über GET /api/games.
@@ -132,3 +133,26 @@ Startspieler `umber`, zweiter Spieler `clay`; Rematch rotiert die Zuordnung.
 Das vollständige View-Schema und Grenzverhalten stehen in
 [backend-api.md](backend-api.md#4-gewinnt--aktion-und-spieleransicht).
 Die Ansicht berechnet keine Gewinner und setzt keine optimistischen Steine.
+
+
+## Bestehende Engine: Schiffe versenken
+
+Export `battleship` aus `backend/src/games/battleship.js`, ID `battleship`,
+Version `1`, genau zwei Spieler und Config exakt `{}`. Reine private
+10×10-Engine mit L-Schiff aus fünf Feldern und geraden Schiffen 4, 3, 3, 2.
+Berührung ist erlaubt, Überlappung nicht. Beide bestätigen ihre Flotte; Treffer
+behalten den Zug, Wasser wechselt ihn. Nur beschossene Felder werden markiert,
+keine Nachbarfelder. Eigene Flotten und versenkte gegnerische Schiffe sind sichtbar;
+ungetroffene gegnerische Positionen bleiben bis zum regulären Sieg privat, auch
+bei Reconnect. Abbruch deckt keine Flotten auf. Rematch setzt alles zurück.
+Aktionen und vollständiger View-Vertrag: [backend-api.md](backend-api.md#schiffe-versenken--aktionen-und-spieleransicht).
+
+
+Optional ist `canApplyStaleAction(state, playerId, action)`: synchron und rein,
+mit Kopien von Zustand und Aktion. Nur exakt `true` erlaubt eine ältere
+`expectedRevision`; zukünftige Revisionen bleiben immer unzulässig. Danach wird
+`handleAction` weiterhin vollständig geprüft. Ohne Hook gilt die bisherige
+strikte Gleichheit. Schiffe versenken verwendet ihn ausschließlich für die erste
+eigene, noch unbestätigte Flotte während `placement`. Die beiden unabhängigen
+Bestätigungen können dadurch gleichzeitig ankommen. Schüsse sowie alle Aktionen
+von Tic Tac Toe und 4 Gewinnt bleiben strikt revisionsgebunden.

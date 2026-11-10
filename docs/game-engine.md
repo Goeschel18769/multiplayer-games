@@ -3,7 +3,7 @@
 Der seit Phase 3 bestehende Vertrag wird in Phase 6 von der ersten produktiven
 Engine `backend/src/games/tic-tac-toe.js` erfüllt. Die separate Test-Engine liegt
 in `tests/fixtures/engine.js`. `backend/src/games/registry.js` ist die einzige
-produktive Registrierungsstelle und enthält Tic Tac Toe und 4 Gewinnt, keine Fixture. Neue
+produktive Registrierungsstelle und enthält Tic Tac Toe, 4 Gewinnt und Schiffe versenken, keine Fixture. Neue
 Spiele werden dort registriert; Raumverwaltung und Transport benötigen keine
 Spiel-Sonderfälle.
 
@@ -19,6 +19,7 @@ Spiel-Sonderfälle.
   handleAction(state, playerId, action),        // neuer JSON-Zustand oder throw
   getPlayerView(state, playerId),               // nur erlaubte JSON-Spieleransicht
   getStatus(state),                            // eines der Ergebnisse unten
+  canApplyStaleAction(state, playerId, action), // optional, siehe Schiffe-Abschnitt
 }
 ```
 
@@ -92,7 +93,7 @@ und Fehler-Injektion existieren nur im Test-Bundle.
 
 Export: `ticTacToe` aus `backend/src/games/tic-tac-toe.js`. ID `tic-tac-toe`,
 Version `1`, genau zwei Spieler (`minPlayers: 2`, `maxPlayers: 2`). Die produktive
-Registry enthält außerdem 4 Gewinnt. Die kompatible Erweiterung verwendet `{}`
+Registry enthält außerdem 4 Gewinnt und Schiffe versenken. Die kompatible Erweiterung verwendet `{}`
 weiterhin für Classic; exakt `{"mode":"classic"}` und `{"mode":"five"}` sind
 ebenfalls gültig. Andere Werte und zusätzliche Schlüssel sind ungültig.
 Die optionalen öffentlichen `modes`-Metadaten sind
@@ -180,3 +181,26 @@ und der letzte Zellindex kommen vom Server. Das genaue Schema steht im
 
 Raum-/Transport-/Statistik-Kern werden für diese Engine nicht verändert;
 Startrotation, Rematches, Abort, Raumablauf und Outbox bleiben generisch.
+
+
+## Bestehende Engine: Schiffe versenken
+
+Export `battleship` aus `backend/src/games/battleship.js`, ID `battleship`,
+Version `1`, genau zwei Spieler und Config exakt `{}`. Reine private
+10×10-Engine mit L-Schiff aus fünf Feldern und geraden Schiffen 4, 3, 3, 2.
+Berührung ist erlaubt, Überlappung nicht. Beide bestätigen ihre Flotte; Treffer
+behalten den Zug, Wasser wechselt ihn. Nur beschossene Felder werden markiert,
+keine Nachbarfelder. Eigene Flotten und versenkte gegnerische Schiffe sind sichtbar;
+ungetroffene gegnerische Positionen bleiben bis zum regulären Sieg privat, auch
+bei Reconnect. Abbruch deckt keine Flotten auf. Rematch setzt alles zurück.
+Aktionen und vollständiger View-Vertrag: [Protokoll](protocol.md#schiffe-versenken--aktionen-und-spieleransicht).
+
+
+Optional ist `canApplyStaleAction(state, playerId, action)`: synchron und rein,
+mit Kopien von Zustand und Aktion. Nur exakt `true` erlaubt eine ältere
+`expectedRevision`; zukünftige Revisionen bleiben immer unzulässig. Danach wird
+`handleAction` weiterhin vollständig geprüft. Ohne Hook gilt die bisherige
+strikte Gleichheit. Schiffe versenken verwendet ihn ausschließlich für die erste
+eigene, noch unbestätigte Flotte während `placement`. Die beiden unabhängigen
+Bestätigungen können dadurch gleichzeitig ankommen. Schüsse sowie alle Aktionen
+von Tic Tac Toe und 4 Gewinnt bleiben strikt revisionsgebunden.

@@ -1,6 +1,6 @@
 # Technische Frontend-Übergabe — multiplayer-games
 
-Stand: 10.11.2026 (Spielhub, Score-Korrektur, Tic-Tac-Toe-Modi und 4 Gewinnt).
+Stand: 10.11.2026 (Spielhub, Score-Korrektur, Tic-Tac-Toe-Modi, 4 Gewinnt und Schiffe versenken).
 Dieses Paket beschreibt den tatsächlich vorhandenen Quellcode, unabhängig
 vom bisherigen Projekt und Chat. Es ermöglicht, in einem
 separaten Projekt ein kompatibles Frontend zu gestalten oder neu zu entwickeln.
@@ -8,6 +8,8 @@ Das Frontend verwendet warme Papieroptik, Hell-, Dunkel- und einen eigenständig
 Büro-Modus. Der kompakte Hub zeigt ohne Seitennamen oder Einleitung Spielkacheln
 mit generierten Bildvorschauen. Tic Tac Toe öffnet die Spielmoduswahl;
 4 Gewinnt führt direkt in seinen Standardraum und verwendet warme Brauntöne.
+Schiffe versenken ergänzt eine dritte Bildkachel und den direkten Standardraum
+`BEN-JOEL-SHIPS`, ebenfalls ohne Moduswahl.
 Die Spielerwahl erfolgt beim ersten Öffnen im Tab per
 Ben-/Joël-Dialog. Im hervorgehobenen Score oben mittig öffnet der eigene Name die Wahl
 erneut und die Zahlen den Editor. Eine kleine Lasche oben rechts verbirgt die
@@ -29,11 +31,20 @@ fünf horizontal, vertikal oder diagonal, ohne Eröffnungs- oder Verbotsregeln).
 Außerdem **4 Gewinnt**, ID `connect-four`, Version `1`, zwei Spieler,
 7 Spalten × 6 Reihen mit Schwerkraft und mindestens vier gleichen Steinen
 waagrecht, senkrecht oder diagonal. Config ist exakt `{}`; direkter Standardraum
-`BEN-JOEL-C4`. Siege beider Spiele zählen zusammen. Die neue Engine benötigt ein
+`BEN-JOEL-C4`. Außerdem **Schiffe versenken**, ID `battleship`, Version `1`,
+zwei Spieler, Config exakt `{}`: 10×10, ein L-Schiff aus fünf Feldern und gerade
+Schiffe 4, 3, 3, 2. Berührung erlaubt, Überlappung nicht. Manuell setzen/drehen
+oder zufällig platzieren, dann eigene Flotte bestätigen. Treffer behält den Zug;
+Wasser wechselt ihn. Nur tatsächliche Schüsse werden markiert, keine Nachbarn.
+Gegnerische Positionen bleiben bis zum Versenken bzw. regulären Sieg privat.
+Siege aller Spiele zählen zusammen. Neue Engines benötigen ein
 separates Backend-Deployment; ältere Backends lassen die Kachel deaktiviert.
 Das Backend wurde am 10.11.2026 nach Freigabe veröffentlicht; die öffentliche
-Spieleliste bestätigt nun beide produktiven Engines einschließlich beider
-Tic-Tac-Toe-Modi. Healthcheck erfolgreich. Das allgemeine
+Spieleliste bestätigt nun alle drei produktiven Engines einschließlich beider
+Tic-Tac-Toe-Modi. Aktuelle Worker-Version: `fd1b9517-76b7-4ce1-af96-36cb29572b0f`.
+Healthcheck erfolgreich. Die lokale Schiffe-Regression umfasst 129 Unit- und
+25 Workerd-Integrationstests; der vollständige Zweispielerablauf ist im Browser
+geprüft (siehe verification.md). Das allgemeine
 Raumframework ist nicht grundsätzlich auf zwei Spieler beschränkt.
 
 Technik: HTML, CSS und Vanilla JavaScript mit ES-Modulen in den Quellen, kein
@@ -53,7 +64,7 @@ gemeinsamen Standardraum `BEN-JOEL-TTT` (Classic) oder `BEN-JOEL-TTT-15` (15×15
 In der Spielansicht ist manuelle Raumanlage und Beitritt über einen versteckten
 Raumdialog möglich. Anlage behält die gewählte Config, Join übernimmt den
 Servermodus; die Raumwahl gilt nur bis zur Rückkehr zum Hub. Tic Tac Toe fragt
-beim nächsten Einstieg erneut nach dem Modus, 4 Gewinnt öffnet direkt seinen Standardraum. Reconnect behält den aktuellen Raum ohne erneute
+beim nächsten Einstieg erneut nach dem Modus, 4 Gewinnt und Schiffe versenken öffnen direkt ihren Standardraum. Reconnect behält den aktuellen Raum ohne erneute
 Anlage; Rematch behält dessen Config. Siege beider Modi zählen global pro Name.
 Die Spielerwahl wird optional
 per `sessionStorage` für den aktuellen Tab gemerkt; blockierter Speicher
@@ -91,5 +102,6 @@ und die bisherige Unterhaltung sind dafür nicht nötig.
 
 Dieses Paket enthält Dokumentation und eine Konfigurationsvorlage, kein neues
 Frontend. Die öffentliche Adresse ist vorgegeben; ein Vergleich des aktuell
-deployten Quellstands mit dem lokalen Code wurde für diese Übergabe nicht
-vorgenommen. Prüfbelege und Nutzerbestätigungen sind in `verification.md` getrennt.
+deployten Bundles wurde für die ursprüngliche Phase-8-Übergabe nicht
+vorgenommen. Am 10.11.2026 wurde das geprüfte Backend mit Schiffe versenken
+veröffentlicht und die öffentliche Spieleliste lesend überprüft. Prüfbelege und Nutzerbestätigungen sind in `verification.md` getrennt.

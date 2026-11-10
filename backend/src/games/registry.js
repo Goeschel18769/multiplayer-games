@@ -2,6 +2,7 @@ import { assertEngine } from '../core/engine.js';
 import { fail } from '../protocol/errors.js';
 import { ticTacToe } from './tic-tac-toe.js';
 import { connectFour } from './connect-four.js';
+import { battleship } from './battleship.js';
 
 export function createRegistry(engines) {
   const registry = new Map();
@@ -21,4 +22,4 @@ export function createRegistry(engines) {
   });
 }
 // Produktive Engines; Test-Fixtures werden nur in getrennten Test-Workern registriert.
-export const registry = createRegistry([ticTacToe, connectFour]);
+export const registry = createRegistry([ticTacToe, connectFour, battleship]);

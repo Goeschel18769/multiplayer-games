@@ -94,7 +94,7 @@ async function harness(responder, { session = new Map(), blockedStorage = false 
       const path = new URL(url).pathname;
       calls.push({ path, options });
       const custom = await responder?.(path, options);
-      const body = custom?.body ?? (path === '/api/games' ? [{ id: 'tic-tac-toe', version: '1', minPlayers: 2, maxPlayers: 2, modes: [{ id: 'classic', boardSize: 3, winLength: 3 }, { id: 'five', boardSize: 15, winLength: 5 }] }, { id: 'connect-four', version: '1', minPlayers: 2, maxPlayers: 2 }]
+      const body = custom?.body ?? (path === '/api/games' ? [{ id: 'tic-tac-toe', version: '1', minPlayers: 2, maxPlayers: 2, modes: [{ id: 'classic', boardSize: 3, winLength: 3 }, { id: 'five', boardSize: 15, winLength: 5 }] }, { id: 'connect-four', version: '1', minPlayers: 2, maxPlayers: 2 }, { id: 'battleship', version: '1', minPlayers: 2, maxPlayers: 2 }]
         : path === '/api/rooms' ? { roomCode: JSON.parse(options.body).roomCode } : []);
       return { ok: custom?.ok ?? true, async json() { return body; } };
     },
@@ -388,6 +388,26 @@ test('4 Gewinnt: eigene Kachel öffnet denselben Standardraum direkt, Reconnect 
     h.get('back-to-hub').click(); await enter(h);
     assert.equal(socketCode(h.sockets.at(-1)), 'BEN-JOEL-TTT'); assert.equal(h.get('play-mode').hidden, false);
   }
+});
+
+test('Schiffe: direkte Kachel, gemeinsame Räume, manuelle Anlage und Reconnect ohne Modusdialog', async () => {
+  for (const player of ['ben','joel']) {
+    const h = await harness(); h.get('player-' + player).click(); await h.get('game-battleship').click();
+    assert.equal(h.get('mode-dialog').open, false); assert.equal(h.get('play-mode').hidden, true);
+    assert.equal(h.get('play-title').textContent, 'Schiffe versenken');
+    assert.deepEqual(JSON.parse(roomCalls(h)[0].options.body), { roomCode: 'BEN-JOEL-SHIPS', gameId: 'battleship', config: {} });
+    h.sockets[0].message(welcome('BEN-JOEL-SHIPS', 'battleship'));
+    assert.equal(h.get('game-view').children[0].className, 'bs-game');
+    h.sockets[0].ended(); h.get('reconnect').click(); assert.equal(roomCalls(h).length, 1);
+    assert.equal(socketCode(h.sockets[1]), 'BEN-JOEL-SHIPS');
+    h.sockets[1].message(welcome('BEN-JOEL-SHIPS', 'battleship'));
+    manual(h, 'SHIPS-ZWEIT'); await h.get('create-manual-room').click();
+    assert.deepEqual(JSON.parse(roomCalls(h)[1].options.body), { roomCode: 'SHIPS-ZWEIT', gameId: 'battleship', config: {} });
+    h.get('back-to-hub').click(); await h.get('game-battleship').click();
+    assert.equal(socketCode(h.sockets.at(-1)), 'BEN-JOEL-SHIPS');
+  }
+  const unsupported = await harness(path => path === '/api/games' ? { body: [{ id: 'battleship', version: '99', minPlayers: 2, maxPlayers: 2 }] } : undefined);
+  unsupported.get('player-ben').click(); await unsupported.get('game-battleship').click(); assert.equal(unsupported.sockets.length, 0);
 });
 
 test('4 Gewinnt: Backend-Fähigkeit steuert die Kachel; vorhandene Räume und echte Fehler', async () => {

@@ -99,7 +99,7 @@ Raumframework, Reconnect, Heartbeat, fünf Minuten Leerraumfrist, gemeinsamer
 Alarm-Scheduler, Engine-Vertrag, individuelle Spieleransichten und zuverlässige
 globale Siegestatistik mit persistenter Outbox und Deduplizierung.
 
-Die produktive Registry enthält `tic-tac-toe` und `connect-four`
+Die produktive Registry enthält `tic-tac-toe`, `connect-four` und `battleship`
 (je Version 1, genau zwei Spieler).
 Die reine Engine bietet Classic (3×3, drei in einer Reihe) und Fünf in einer
 Reihe (15×15, mindestens fünf horizontal, vertikal oder diagonal), individuelle
@@ -115,6 +115,15 @@ Das Spiel hat eine eigene Kachel und führt direkt in `BEN-JOEL-C4`, ohne Modusw
 Die Darstellung verwendet warme Braun- und Terrakottatöne, Spaltenvorschau und
 eine dezente Fallanimation für neu bestätigte Züge. Alle Spiele zählen Siege
 in denselben Namenszeilen.
+
+Schiffe versenken verwendet 10×10 Felder und fünf Schiffe: ein drehbares
+L-Schiff aus fünf Feldern sowie gerade Schiffe mit 4, 3, 3 und 2 Feldern.
+Berührung ist erlaubt, Überlappung nicht. Eigene oder zufällige Platzierung,
+danach Flotte bestätigen. Ein Treffer erlaubt den nächsten Schuss, Wasser
+wechselt den Zug. Nur tatsächliche Treffer und Fehlschüsse werden markiert,
+keine Nachbarfelder. Die gegnerische Flotte bleibt serverseitig verborgen;
+versenkte Schiffe sind sichtbar. Die Kachel führt direkt nach `BEN-JOEL-SHIPS`.
+Am Desktop stehen beide Bretter nebeneinander, mobil kann man umschalten.
 
 Der kompakte Hub zeigt Spielkacheln mit generierten Bildvorschauen in warmer
 Papieroptik, ohne Seitennamen oder Begrüßungstexte. Der hervorgehobene globale
@@ -223,7 +232,10 @@ liegt neben der PNG-Datei.
 Die Vorschau für 4 Gewinnt wurde ebenfalls mit dem eingebauten Imagegen-Werkzeug
 erzeugt: [Bildquelle](frontend/src/assets/connect-four-preview.png) und
 [verwendeter Prompt](frontend/src/assets/connect-four-preview.prompt.txt).
-Beide Bilder bleiben in `app.js` eingebettet.
+Auch Schiffe versenken hat eine Vorschau aus dem integrierten Imagegen-Werkzeug:
+[Bildquelle](frontend/src/assets/battleship-preview.png) und
+[verwendeter Prompt](frontend/src/assets/battleship-preview.prompt.txt).
+Alle drei Bilder bleiben in `app.js` eingebettet.
 
 ## Öffentliche Konfiguration
 
@@ -252,6 +264,7 @@ Frontend-Registry. Es gibt keine zufälligen Ausweichräume, die beide Spieler
 unbemerkt trennen könnten.
 4 Gewinnt führt direkt über seine Kachel nach `BEN-JOEL-C4`; auch hier gilt
 Create und ausschließlich bei `ROOM_EXISTS` Join, ohne automatischen Create-Replay.
+Schiffe versenken verwendet denselben direkten Ablauf mit `BEN-JOEL-SHIPS`.
 
 In der Spielansicht öffnet eine unauffällige Raumsteuerung einen Dialog mit dem
 aktuellen Code sowie getrennten Aktionen für Erstellen und Beitreten. Manuelle
@@ -262,7 +275,11 @@ Reconnect behält den aktuellen Code und legt keinen Raum an. Rematches behalten
 die Raumkonfiguration, Siege zählen über beide Modi gemeinsam nach Namen.
 
 Alle Teilnehmer setzen sich bereit; danach kann die erste Runde gestartet
-werden. Brett, Zugrecht und Ergebnisse stammen weiterhin ausschließlich vom
+werden. Bei Schiffe versenken setzt und bestätigt anschließend jeder seine
+eigene Flotte. Beide dürfen unabhängig bestätigen; erst dann beginnt die
+Schussphase. Unbestätigte Platzierungsentwürfe bleiben bei Reconnect derselben
+Seite im Arbeitsspeicher erhalten, nicht über ein Neuladen hinweg.
+ Brett, Zugrecht und Ergebnisse stammen weiterhin ausschließlich vom
 Server. „← Spiele“ trennt die Verbindung und führt zum Hub zurück; der Spielerplatz bleibt bis
 zum Raumablauf reserviert. Nach fünf Minuten ohne lebende Verbindungen läuft
 der Raum ab. Eine neue Verbindung mit demselben Namen übernimmt den Platz.
@@ -300,14 +317,16 @@ wenn `/api/games` `connect-four`, Version `1`, meldet. Ein GitHub-Release
 aktualisiert den Cloudflare-Worker nicht; dessen Deployment bleibt getrennt.
 
 Am **10.11.2026** wurde das geprüfte Backend nach Freigabe veröffentlicht.
-Die öffentliche Spieleliste bestätigt `tic-tac-toe` mit beiden Modi und
-`connect-four`, jeweils Version `1`; `/health` bestätigt `{"ok":true}`.
-Die aktuelle Download-Ausgabe kann damit 4 Gewinnt online anbieten.
+Die öffentliche Spieleliste bestätigt `tic-tac-toe` mit beiden Modi,
+`connect-four` und `battleship`, jeweils Version `1`; `/health` bestätigt
+`{"ok":true}`. Aktuelle Worker-Version: `fd1b9517-76b7-4ce1-af96-36cb29572b0f`.
+Die Download-Ausgabe kann damit alle drei Spiele online anbieten.
+Die Schiffe-Kachel wird erst mit passender `battleship`-Metadatenversion aktiv.
 
 ## Spieloberfläche und Diagnoseoberfläche
 
 - `release/index.html`: normale Spieloberfläche ohne technische IDs, Roh-JSON
-  oder Fixture-Aktionen; unterstützt Tic Tac Toe und 4 Gewinnt.
+  oder Fixture-Aktionen; unterstützt Tic Tac Toe, 4 Gewinnt und Schiffe versenken.
 - `tests/manual/client/index.html`: separate technische Diagnoseoberfläche für
   HTTP/WS, IDs und Nachrichten. Sie kann den normalen lokalen Server auf Port
   8787 oder den getrennten Fixture-Server (`npm run dev:manual`) auf Port 8788

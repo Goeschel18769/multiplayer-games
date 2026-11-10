@@ -62,7 +62,7 @@ gelesen, unabhängig von Content-Length. Erstellen verbindet noch keinen Spieler
 Spieleliste derzeit:
 
 ```json
-[{"id":"tic-tac-toe","version":"1","minPlayers":2,"maxPlayers":2,"modes":[{"id":"classic","boardSize":3,"winLength":3},{"id":"five","boardSize":15,"winLength":5}]},{"id":"connect-four","version":"1","minPlayers":2,"maxPlayers":2}]
+[{"id":"tic-tac-toe","version":"1","minPlayers":2,"maxPlayers":2,"modes":[{"id":"classic","boardSize":3,"winLength":3},{"id":"five","boardSize":15,"winLength":5}]},{"id":"connect-four","version":"1","minPlayers":2,"maxPlayers":2},{"id":"battleship","version":"1","minPlayers":2,"maxPlayers":2}]
 ```
 
 `modes` ist optional. Ein älteres Backend ohne Modusmetadaten wird vom Frontend
@@ -247,7 +247,9 @@ Start setzt alle ready-Felder auf false und friert die Teilnehmer ein.
 action/rematch/abort verlangen zunächst die aktuelle matchId, sonst STALE_MATCH,
 und einen Teilnehmer. action und abort verlangen running, sonst
 MATCH_NOT_RUNNING. action zusätzlich exakte expectedRevision, sonst
-STALE_REVISION, und gültige Engine-Aktion. Jeder Teilnehmer darf abort senden;
+STALE_REVISION, und gültige Engine-Aktion. Einzige Ausnahme: die erste eigene
+Flottenbestätigung in der Schiffe-Platzierung darf eine ältere Revision verwenden
+(siehe Schiffe-Abschnitt); zukünftige Revisionen bleiben immer gesperrt. Jeder Teilnehmer darf abort senden;
 es braucht weder Zustimmung aller noch expectedRevision. abort erhöht Revision,
 setzt room.status auf aborted und zählt keinen Sieg.
 
@@ -418,7 +420,7 @@ Unterbrechung liefert zuverlässig einen der Anwendungscodes an den Browser.
 
 Alle regulären Siege aller registrierten Spiele werden gemeinsam nach demselben
 normalisierten Namensschlüssel gezählt, ohne Spielspalte. Tic Tac Toe mit beiden
-Modi und 4 Gewinnt werden gemeinsam gezählt. Draw,
+Modi, 4 Gewinnt und Schiffe versenken werden gemeinsam gezählt. Draw,
 abort, Disconnect und Raumlöschung erzeugen keinen Sieg.
 Der Server speichert den running→won-Abschluss und ein Ereignis mit matchId und
 eingefrorenem Gewinnernamen atomar. Eine persistente Outbox liefert an ein
@@ -763,3 +765,69 @@ bereitgestellt werden. Versteckte manuelle Räume und Reconnect gelten weiterhin
 Ein manueller Join übernimmt die tatsächliche Engine des Zielraums; eine weitere
 Raumanlage verwendet diese Engine und deren Config. Das nächste Betreten über
 die Kachel verwendet wieder `BEN-JOEL-C4`.
+
+
+## Schiffe versenken — Aktionen und Spieleransicht
+
+`battleship`, Version `1`, genau zwei Spieler, Config exakt `{}`. Direkter
+Standardraum `BEN-JOEL-SHIPS`, kein Modusdialog. Raumanlage:
+
+```json
+{"roomCode":"BEN-JOEL-SHIPS","gameId":"battleship","config":{}}
+```
+
+Nach dem allgemeinen Ready/Start beginnt die private Platzierungsphase auf
+10×10 Feldern. Die Flotte besteht in fester Reihenfolge aus L-Schiff (5),
+geradem 4er, geradem 3er I, geradem 3er II und geradem 2er. Die Grundform des
+L-Schiffs ist `XXX / X.. / X..`: drei senkrechte Felder, vom oberen Eckfeld
+zwei weitere nach rechts. Schiffe dürfen sich waagrecht, senkrecht und diagonal
+berühren, aber nicht überlappen oder über den Rand ragen. Insgesamt 17 Felder.
+
+Eine Platzierung besteht exakt aus `cell` (Ganzzahl 0–99, zeilenweise A1 bis J10)
+und `rotation` (0–3 Vierteldrehungen im Uhrzeigersinn). `cell` verankert die
+linke obere Ecke des umschließenden Rechtecks der gedrehten Form. Die ganze
+Flotte wird einmalig bestätigt; die fünf Einträge entsprechen der obigen
+Schiffsreihenfolge. Beispiel mit erlaubten Berührungen:
+
+```json
+{"kind":"placeFleet","ships":[{"cell":0,"rotation":0},{"cell":3,"rotation":0},{"cell":11,"rotation":0},{"cell":21,"rotation":0},{"cell":30,"rotation":0}]}
+```
+
+Beide Spieler dürfen ihre noch unbestätigte Flotte unabhängig abgeben, auch
+wenn die andere Bestätigung inzwischen die Revision erhöht hat. Nur diese
+Aktion darf eine ältere `expectedRevision` verwenden. Zukünftige Revisionen,
+erneute Flottenbestätigung und sämtliche Schüsse haben keine solche Ausnahme.
+Nach Bestätigung beider Flotten beginnt der vom Server bestimmte Startspieler.
+
+```json
+{"kind":"fire","cell":99}
+```
+
+Treffer und Versenken erlauben einen weiteren Schuss; Wasser wechselt den Zug.
+Jedes Feld darf höchstens einmal beschossen werden. Alle fünf gegnerischen
+Schiffe versenkt ergibt `won`, ohne Draw. Ungültige Aktionen, zusätzliche Felder,
+falscher Spieler, falsche Phase und unzulässige Positionen werden ohne Mutation
+abgelehnt. Die Aktionen liegen im unveränderten v1-`action`-Umschlag mit
+`requestId`, aktueller `matchId` und `expectedRevision`.
+
+| Feld in `view` | Inhalt |
+| --- | --- |
+| `boardSize`, `fleetSizes` | `10`, `[5,4,3,3,2]`. |
+| `phase` | `placement`, `battle` oder `finished`. |
+| `yourReady`, `opponentReady` | Boolean; jeweilige Flotte bestätigt. Getrennt von Lobby-Ready. |
+| `ownBoard`, `targetBoard` | Je 100 Werte: `unknown`, `ship`, `miss`, `hit`, `sunk`. |
+| `ownShips`, `opponentShips` | Arrays aus `{index,cells,sunk}`; Index 0–4, Zellindizes, Boolean. |
+| `remaining` | `{you,opponent}`, je 0–5 noch nicht versenkte Schiffe; vor Bestätigung 5. |
+| `currentPlayerId` | In der Schussphase die zugberechtigte ID; sonst `null`. |
+| `lastShot` | `null` oder `{playerId,cell,result}` mit `miss`, `hit` oder `sunk`. |
+
+Die eigene bestätigte Flotte ist vollständig sichtbar. Die gegnerische Ansicht
+enthält vor regulärem Spielende ausschließlich tatsächliche Schüsse und bereits
+versenkte Schiffe; `opponentShips` enthält bis dahin nur diese versenkten Schiffe.
+Unbeschossene gegnerische Felder bleiben `unknown`. **Kein Nachbarfeld wird als
+Wasser markiert**, weil Berührung erlaubt ist. Nach regulärem Sieg wird die
+gegnerische Flotte vollständig sichtbar. Ein Infrastruktur-Abbruch lässt den
+internen Zustand unverändert und deckt keine weiteren Positionen auf;
+`room.status` sperrt dann alle Aktionen. Reconnect verwendet dieselbe gefilterte
+Ansicht. Rematch beginnt mit neuer Match-ID und leeren Flotten, der Startspieler
+rotiert. Siege laufen durch dieselbe deduplizierte Statistik-Outbox.

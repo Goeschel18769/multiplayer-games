@@ -24,7 +24,7 @@ test('Zentrale Fristen und Produktionsregistry', () => {
   assert.equal(SETTINGS.connectionTimeoutMs, 120000);
   const expected = [{ id: 'tic-tac-toe', version: '1', minPlayers: 2, maxPlayers: 2, modes: [
     { id: 'classic', boardSize: 3, winLength: 3 }, { id: 'five', boardSize: 15, winLength: 5 },
-  ] }, { id: 'connect-four', version: '1', minPlayers: 2, maxPlayers: 2 }];
+  ] }, { id: 'connect-four', version: '1', minPlayers: 2, maxPlayers: 2 }, { id: 'battleship', version: '1', minPlayers: 2, maxPlayers: 2 }];
   assert.deepEqual(registry.list(), expected);
   const publicGames = registry.list();
   publicGames[0].modes[0].id = 'changed';
@@ -49,7 +49,7 @@ test('Alle Client-Schemas, strikte Kennungen und tatsächliche UTF-8-Bytes', () 
 });
 test('Synchroner Engine-Vertrag und verlustfreie JSON-Daten', () => {
   assert.equal(assertEngine(fixtureEngine), fixtureEngine);
-  for (const engine of [{ ...fixtureEngine, maxPlayers: 1 }, { ...fixtureEngine, getStatus: null }]) assert.throws(() => assertEngine(engine));
+  for (const engine of [{ ...fixtureEngine, maxPlayers: 1 }, { ...fixtureEngine, getStatus: null }, { ...fixtureEngine, canApplyStaleAction: true }]) assert.throws(() => assertEngine(engine));
   assert.throws(() => createRegistry([fixtureEngine, fixtureEngine]));
   for (const value of [undefined, NaN, Infinity, { a: undefined }, new Date(), Promise.resolve(1), [, 1]]) assert.throws(() => jsonClone(value));
   const cycle = {}; cycle.self = cycle; assert.throws(() => jsonClone(cycle));

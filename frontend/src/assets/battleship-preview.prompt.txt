@@ -1,0 +1,10 @@
+Use case: stylized-concept.
+Asset type: finished landscape illustration for the Battleship game tile of a local paper-style board game hub.
+Primary request: a calm tactile top-down paper illustration of a Battleship chart with small abstract ship-shaped paper pieces.
+Scene/backdrop: warm ivory handmade paper, soft muted sage watercolor sea wash, spacious minimal surroundings.
+Subject: one square ten-by-ten nautical game grid drawn with fine warm grey-sage lines on ivory paper. On it sit a few substantial muted warm-brown paper ship pieces aligned to the grid, including one distinct five-square L-shaped piece shaped like three squares across the top and three down the left, sharing the corner square (five squares total), and a few straight pieces. A few tiny terracotta hit marks and soft grey miss dots. Keep the image quiet and the pieces readable at small thumbnail size.
+Style/medium: restrained editorial watercolor and layered cut-paper relief, real paper grain, slightly imperfect edges, soft shallow warm shadows. Same refined earthy tactile aesthetic as paper Tic Tac Toe and Four in a Row illustrations, modern and calm.
+Composition/framing: landscape 3:2. Chart entirely centered within the middle 65 percent, broad ivory margins on every side so the full chart crops safely into a wide card. Almost directly overhead. No perspective distortion.
+Color palette: ivory, oatmeal, muted sage, warm brown, soft charcoal and a small amount of muted terracotta.
+Text: no words, letters, numbers, labels, logos, UI or watermark.
+Constraints: abstract board game illustration, no realistic warships or weapons, no people, hands, furniture, extra props, dramatic waves or smoke. Opaque full background.

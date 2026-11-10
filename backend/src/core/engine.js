@@ -26,6 +26,7 @@ export function assertEngine(engine) {
       typeof engine.version !== 'string' || !engine.version ||
       !Number.isSafeInteger(engine.minPlayers) || !Number.isSafeInteger(engine.maxPlayers) ||
       engine.minPlayers < 1 || engine.maxPlayers < engine.minPlayers ||
+      (engine.canApplyStaleAction !== undefined && typeof engine.canApplyStaleAction !== 'function') ||
       !['validateConfig', 'createInitialState', 'handleAction', 'getPlayerView', 'getStatus'].every(k => typeof engine[k] === 'function')) {
     throw new Error('Invalid engine contract');
   }

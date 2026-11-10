@@ -1,4 +1,4 @@
-import { initialMatch, applyAction } from './engine.js';
+import { initialMatch, applyAction, jsonClone } from './engine.js';
 import { fail } from '../protocol/errors.js';
 
 function startMatch(room, engine, participants, firstPosition) {
@@ -39,7 +39,13 @@ export function mutateRoom(room, player, m, { engines, firstPosition }) {
         match.status = { type: 'aborted' };
         match.revision++;
       } else {
-        if (m.expectedRevision !== match.revision) fail('STALE_REVISION');
+        if (m.expectedRevision !== match.revision) {
+          // Optionale reine Engine-Freigabe für voneinander unabhängige Aktionen.
+          // Zukünftige Revisionen und alle normalen Züge bleiben strikt gesperrt.
+          const independent = m.expectedRevision < match.revision &&
+            engine.canApplyStaleAction?.(jsonClone(match.state), player.playerId, jsonClone(m.action)) === true;
+          if (!independent) fail('STALE_REVISION');
+        }
         const result = applyAction(engine, match, player.playerId, m.action);
         match.state = result.state;
         match.status = result.status;

@@ -111,8 +111,8 @@ curl -i http://localhost:8787/api/stats
 curl -i -X POST http://localhost:8787/health
 ```
 
-Erwartet: 200 mit `{"ok":true}`, 404 mit `NOT_FOUND`, 200 mit Tic Tac Toe und
-4 Gewinnt (je Version 1, minPlayers/maxPlayers 2), 200 mit Statistik-Array und 405 mit
+Erwartet: 200 mit `{"ok":true}`, 404 mit `NOT_FOUND`, 200 mit Tic Tac Toe,
+4 Gewinnt und Schiffe versenken (je Version 1, minPlayers/maxPlayers 2), 200 mit Statistik-Array und 405 mit
 `Allow: GET`. Raumerstellung mit einer erfundenen Spiel-ID liefert `UNKNOWN_GAME`.
 
 ## Historisches Ergebnis der Phase-3-Prüfung
@@ -492,3 +492,51 @@ GitHub-Release v1.0.1 wurde automatisiert erstellt; sein heruntergeladenes ZIP
 wurde bytegleich mit dem lokal geprüften öffentlichen Build verglichen. Es enthält
 exakt index.html, app.js und style.css. Der ergänzende Dokumentations-Push nutzt
 weiterhin denselben automatischen Release-Workflow.
+
+
+## Schiffe versenken — 10.11.2026
+
+- Vollständige Regression: **129 Unit-Tests und 25 Workerd-Integrationstests**,
+  alle bestanden. Neue Engine-Tests prüfen vier L-Drehungen, erlaubte Berührungen,
+  keine Überlappung, Grenzen, unveränderte Eingaben, private Ansichten, Treffer-/
+  Wasser-Zugrecht, Versenken ohne Nachbarmarkierung und vollständigen Sieg.
+  80 erzeugte Zufallsflotten wurden durch die echte Server-Engine akzeptiert.
+- Produktiver Workerd-Ablauf mit zwei WebSockets: beide Flottenbestätigungen
+  dürfen dieselbe Ausgangsrevision haben; zukünftige Revisionen und veraltete
+  Schüsse bleiben gesperrt. Private Ansichten auch bei Reconnect, exakte
+  versenkte Schiffe, keine Wasser-Nachbarn, 17 Treffer bis Sieg, deduplizierte
+  Statistik, Rematch mit leeren Flotten/Startrotation und Abort ohne Offenlegung.
+- Renderer-/App-Tests: manuell setzen, drehen, entfernen, Zufall, Entwurf bei
+  Reconnect und getrennt je Partie/Spieler; direkte gemeinsame Kachel, versteckte
+  manuelle Räume, Standardraum nach Hub-Rückkehr und Metadaten-Prüfung.
+  Nach den ergänzten Konturen wurden alle 32 Renderer-/App-Tests erneut bestanden.
+- Echte Chrome-Prüfung auf macOS: unabhängige lokale Kopie
+  `/private/tmp/battleship.Nke5HC/` über file:// gegen isoliertes Backend
+  127.0.0.1:8789, Persistenz `.wrangler/battleship-20261110/`. Zwei Tabs Ben/Joël
+  betreten denselben Standardraum, Ready/Start, manuelle Flottenbestätigung mit
+  berührenden Schiffen, Joëls Wasser auf J10, Bens Trefferfolge bis Sieg 1:0.
+  Nach Neuladen und Wiedereinstieg bleibt das Ergebnis erhalten; beidseitiger
+  Rematch zeigt neue leere Flotten. Zufallsplatzierung ergibt fünf Schiffe.
+- Screenshots bestätigen dunkle Desktopansicht, neue dritte Hub-Kachel und
+  320-CSS-Pixel-Ansichten: Platzierung, helle Siegansicht, Büro-Siegansicht mit
+  umgeschalteter eigener Flotte. Konturen machen das L und berührende Schiffe
+  erkennbar. Erwarteter HTTP 409 bei ROOM_EXISTS in der Konsole; keine
+  JavaScript-Ausnahme beobachtet. Physische Touchgeräte und weitere Browser
+  bleiben ungeprüft. Keine öffentlichen Matches oder Score-Änderungen.
+- Beide lokalen Test-Tabs geschlossen und isolierten Server beendet.
+
+- Abschließender Wrangler-Dry-Run erfolgreich. `npm run package:release` erstellt
+  den öffentlichen Build und das ZIP mit exakt drei bytegleichen Dateien;
+  drei PNGs eingebettet, keine lokale Testadresse. 86 JSON-Beispiele und alle
+  relativen Dateilinks der Dokumentation geprüft.
+
+### Öffentliches Backend — Schiffe versenken
+
+Wie vom Nutzer für diese Erweiterung beauftragt wurde der geprüfte Worker
+veröffentlicht: Version `fd1b9517-76b7-4ce1-af96-36cb29572b0f`, weiterhin
+GAME_ROOMS und GLOBAL_STATS. Anschließende read-only HTTPS-Abrufe mit curl und
+Origin null: `/health` gibt `{"ok":true}` zurück, `/api/games` nennt alle drei
+Engines `tic-tac-toe`, `connect-four`, `battleship`, jeweils Version 1 und zwei
+Spieler, Tic Tac Toe weiterhin mit beiden Modi. Keine öffentlichen Matches
+oder Score-Änderungen erzeugt. GitHub-Push veröffentlicht zusätzlich die
+Frontend-Ausgabe über den vorhandenen geprüften Release-Workflow.
