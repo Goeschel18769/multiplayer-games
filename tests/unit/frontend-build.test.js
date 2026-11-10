@@ -24,7 +24,7 @@ test('Release-Vertrag: drei portable Assets, öffentlicher ZIP-Download, isolier
     assert.ok(Object.keys(production.inputs).every(input => input.startsWith('frontend/')));
     assert.ok(Object.keys(production.inputs).includes('frontend/src/assets/tic-tac-toe-preview.png'));
     assert.ok(Object.keys(production.inputs).includes('frontend/src/assets/connect-four-preview.png'));
-    assert.ok(Object.keys(production.inputs).includes('frontend/src/assets/battleship-preview.png'));
+    assert.ok(Object.keys(production.inputs).includes('frontend/src/assets/battleship-preview-naval.png'));
     const bundle = await readFile('release/app.js', 'utf8');
     assert.match(bundle, /https:\/\/multiplayer-games\.haldimann-joel\.workers\.dev/);
     assert.ok(!bundle.includes('127.0.0.1'));

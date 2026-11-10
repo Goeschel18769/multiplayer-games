@@ -8,7 +8,7 @@ import { gamePresentation, supportedGame, supportedMode } from './games/registry
 import { TTT_MODES } from './games/tic-tac-toe-modes.js';
 import previewImage from './assets/tic-tac-toe-preview.png';
 import connectFourPreview from './assets/connect-four-preview.png';
-import battleshipPreview from './assets/battleship-preview.png';
+import battleshipPreview from './assets/battleship-preview-naval.png';
 
 const $ = id => document.getElementById(id);
 const api = createApi(CONFIG);

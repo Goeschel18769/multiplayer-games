@@ -11,7 +11,10 @@
   --c4-umber: #704a32; --c4-clay: #bd815e; --c4-board: #e5d0b2; --c4-edge: #c7aa86;
   --c4-slot: #f7f1e7; --c4-soft: #f1e6d7; --c4-line: #dac7af; --c4-ink: #70533d;
   --c4-page: #f7f2ea; --c4-paper: #fffbf4; --c4-text: #42362c;
-  --bs-water: #f2f3e9; --bs-line: #d9dfce; --bs-ship: #a18a6a; --bs-hit: #a86d50; --bs-soft: #e4ebd8; --bs-miss: #869181;
+  --bs-water: #b9d8e6; --bs-water-light: #d9eaf0; --bs-line: #93b8ca; --bs-ship: #607783; --bs-hit: #b6533c; --bs-soft: #d6e9f0; --bs-miss: #406b83;
+  --bs-page: #eaf1f3; --bs-paper: #f8faf8; --bs-ink: #293e4b; --bs-muted: #617985; --bs-accent: #326b8a; --bs-frame: #bdced6;
+  --bs-score: #284b60; --bs-score-ink: #f4f7f4;
+  --bs-hull-dark: #2f4551; --bs-hull: #6d8590; --bs-deck-light: #b9c5c5; --bs-deck: #8e9fa3; --bs-deck-dark: #697f8a; --bs-window: #294a5b; --bs-rail: #d5dcda;
   --shadow: 0 2px 4px #41493406, 0 12px 30px #41493408;
   --serif: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Palatino, Georgia, serif;
   background: var(--page); color: var(--ink); line-height: 1.5;
@@ -28,7 +31,10 @@
   --c4-umber: #b48a5e; --c4-clay: #e3b498; --c4-board: #514031; --c4-edge: #715a44;
   --c4-slot: #302b24; --c4-soft: #45392d; --c4-line: #61503f; --c4-ink: #d4b79a;
   --c4-page: #28241f; --c4-paper: #342d26; --c4-text: #eee5d8;
-  --bs-water: #303b30; --bs-line: #4d5c49; --bs-ship: #bda37e; --bs-hit: #d89772; --bs-soft: #44543b; --bs-miss: #9cae93;
+  --bs-water: #183e57; --bs-water-light: #28526a; --bs-line: #355c73; --bs-ship: #91a5af; --bs-hit: #f0ad83; --bs-soft: #315f79; --bs-miss: #8dbed8;
+  --bs-page: #172a37; --bs-paper: #203746; --bs-ink: #e5eef0; --bs-muted: #a0bdca; --bs-accent: #a6d3e7; --bs-frame: #3d5b6c;
+  --bs-score: #d6e6eb; --bs-score-ink: #244457;
+  --bs-hull-dark: #405562; --bs-hull: #8ba1ad; --bs-deck-light: #d1dad8; --bs-deck: #a5b5b8; --bs-deck-dark: #788f9c; --bs-window: #294858; --bs-rail: #e1e8e3;
   --shadow: 0 2px 4px #0000000a, 0 12px 30px #00000014;
 }
 :root[data-theme="office"] {
@@ -43,7 +49,10 @@
   --c4-umber: #625b50; --c4-clay: #aaa292; --c4-board: #e2e0d9; --c4-edge: #c7c4bb;
   --c4-slot: #f9f9f6; --c4-soft: #eeede8; --c4-line: #d8d5cc; --c4-ink: #68635a;
   --c4-page: #f3f3f0; --c4-paper: #fdfdfb; --c4-text: #403e38;
-  --bs-water: #f3f4f0; --bs-line: #d3d7d1; --bs-ship: #939286; --bs-hit: #68665c; --bs-soft: #e7ebe5; --bs-miss: #91998f;
+  --bs-water: #dee7eb; --bs-water-light: #edf1f2; --bs-line: #c2d0d7; --bs-ship: #7f8f97; --bs-hit: #805d50; --bs-soft: #e1e9ed; --bs-miss: #758d9c;
+  --bs-page: #f0f3f4; --bs-paper: #fbfcfb; --bs-ink: #37464e; --bs-muted: #687b86; --bs-accent: #5b788b; --bs-frame: #cbd5da;
+  --bs-score: #485e6b; --bs-score-ink: #fcfcfa;
+  --bs-hull-dark: #586872; --bs-hull: #8b989e; --bs-deck-light: #c5cbcb; --bs-deck: #a5afb1; --bs-deck-dark: #85959c; --bs-window: #526973; --bs-rail: #e3e6e3;
 }
 * { box-sizing: border-box; }
 body { margin: 0; min-width: 320px; min-height: 100vh; background: radial-gradient(ellipse at 18% 37%, var(--wash-one), transparent 44%), radial-gradient(ellipse at 86% 83%, var(--wash-two), transparent 40%), var(--page); }
@@ -229,7 +238,15 @@ body:has(.play-page[data-game="connect-four"]:not([hidden])) { --page: var(--c4-
 .c4-cell .c4-disc[data-falling="true"] { animation: c4-drop .42s cubic-bezier(.25,.7,.45,1.06); }
 @keyframes c4-drop { from { transform: translateY(calc(-1 * var(--fall-distance) * 145%)); } to { transform: translateY(0); } }
 .c4-caption { font-size: 10px; color: var(--muted); text-align: center; margin: 18px 0 20px; }
+body:has(.play-page[data-game="battleship"]:not([hidden])) {
+  --page: var(--bs-page); --paper: var(--bs-paper); --ink: var(--bs-ink); --muted: var(--bs-muted);
+  --accent: var(--bs-accent); --accent-soft: var(--bs-soft); --line: var(--bs-frame); --line-soft: var(--bs-frame);
+  --score-surface: var(--bs-score); --score-ink: var(--bs-score-ink);
+  color: var(--ink);
+  background: radial-gradient(ellipse at 12% 38%, var(--bs-soft), transparent 58%), var(--page);
+}
 .play-page[data-game="battleship"] { max-width: 1000px; }
+.play-page[data-game="battleship"] .play-paper { border-color: var(--bs-frame); background: linear-gradient(145deg, var(--paper), color-mix(in srgb, var(--paper), var(--bs-water) 9%)); }
 .play-page[data-game="battleship"] .play-paper { max-width: 940px; }
 .bs-status { text-align: center; font-size: 13px; color: var(--muted); margin: 0 0 18px; min-height: 20px; }
 .bs-game[data-phase="finished"] .bs-status { font-family: var(--serif); font-size: 25px; color: var(--ink); }
@@ -239,15 +256,15 @@ body:has(.play-page[data-game="connect-four"]:not([hidden])) { --page: var(--c4-
 .bs-piece[aria-pressed="true"] { background: var(--bs-soft); border-color: var(--accent); }
 .bs-piece[data-placed="true"]:after { content: ''; position: absolute; top: 6px; right: 6px; width: 3px; height: 3px; border-radius: 50%; background: var(--accent); }
 .bs-piece-name { font-size: 10px; white-space: nowrap; }
-.bs-mini { display: grid; grid-template: repeat(4, 6px) / repeat(4, 6px); gap: 1px; width: 27px; height: 27px; align-content: center; justify-content: center; }
-.bs-mini i { background: var(--bs-ship); border-radius: 1px; box-shadow: inset 0 1px 0 #ffffff28; }
+.bs-mini { display: grid; place-items: center; width: 56px; height: 38px; max-width: 100%; }
+.bs-mini .bs-naval-ship { position: static; width: 100%; height: 100%; filter: drop-shadow(0 1px 1px #10233030); }
 .bs-placement-tools { display: flex; align-items: center; justify-content: center; gap: 7px; flex-wrap: wrap; margin-top: 12px; }
 .bs-placement-tools button { padding: 6px 9px; font-size: 10px; }
 .bs-placement-tools .text-button { padding: 5px; }
 .bs-placement-help { text-align: center; font-size: 10px; color: var(--muted); min-height: 15px; margin: 10px 0 0; }
 .bs-layout { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 33px; max-width: 850px; margin: auto; }
 .bs-game[data-phase="placement"] .bs-layout { display: block; max-width: 366px; }
-.bs-panel { min-width: 0; }
+.bs-panel { min-width: 0; padding: 13px; border: 1px solid var(--bs-frame); border-radius: 13px; background: color-mix(in srgb, var(--paper), var(--bs-water) 8%); box-shadow: inset 0 1px 0 #ffffff12; }
 .bs-panel-heading { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 0 1px 9px 20px; }
 .bs-board-title { font-family: var(--serif); font-size: 22px; font-weight: 400; margin: 0; line-height: 1.2; letter-spacing: -.4px; }
 .bs-fleet-count { font-size: 10px; color: var(--muted); white-space: nowrap; }
@@ -255,29 +272,27 @@ body:has(.play-page[data-game="connect-four"]:not([hidden])) { --page: var(--c4-
 .bs-columns { grid-column: 2; display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); align-items: start; text-align: center; }
 .bs-rows { grid-column: 1; grid-row: 2; display: grid; grid-template-rows: repeat(10, minmax(0, 1fr)); align-items: center; text-align: left; }
 .bs-columns, .bs-rows { font-size: 8px; color: var(--muted); font-variant-numeric: tabular-nums; }
-.bs-grid { grid-column: 2; grid-row: 2; display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 1px; border: 1px solid var(--bs-line); border-radius: 7px; padding: 3px; background: var(--bs-line); overflow: hidden; box-shadow: 0 3px 8px #2f403007; }
+.bs-grid { position: relative; grid-column: 2; grid-row: 2; display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 1px; border: 1px solid var(--bs-line); border-radius: 7px; padding: 3px; background: var(--bs-line); overflow: hidden; box-shadow: inset 0 1px 0 #ffffff26, 0 3px 12px #12374d12; }
 .bs-row { display: contents; }
-.bs-cell { aspect-ratio: 1; border: 0; padding: 0; background: var(--bs-water); border-radius: 1px; min-width: 0; display: grid; place-items: center; cursor: default; transition: background .15s, box-shadow .15s; }
-.bs-cell:hover:enabled { border-color: transparent; }
+.bs-cell { aspect-ratio: 1; border: 0; padding: 0; background: linear-gradient(155deg, var(--bs-water-light), var(--bs-water)); border-radius: 1px; min-width: 0; display: grid; place-items: center; cursor: default; transition: background .15s, box-shadow .15s; }
+.bs-cell:hover:enabled { border-color: var(--bs-line); }
 .bs-cell:active:enabled { transform: none; }
-.bs-cell:focus-visible { z-index: 2; outline-offset: -3px; outline-width: 1.5px; }
+.bs-cell:focus-visible { outline: none; }
+.bs-cell:focus-visible:after { content: ''; position: absolute; inset: 2px; border: 1.5px solid var(--accent); border-radius: 2px; z-index: 4; pointer-events: none; }
 .bs-cell[aria-disabled="false"] { cursor: crosshair; }
 .bs-cell[aria-disabled="false"]:hover { background: var(--bs-soft); }
-.bs-cell[data-state="ship"] { background: var(--bs-ship); box-shadow: inset 0 1px 0 #ffffff30; }
-.bs-cell[data-state="hit"] { background: var(--bs-water); }
-.bs-panel[data-board="own"] .bs-cell[data-state="hit"] { background: var(--bs-ship); }
-.bs-cell[data-state="sunk"] { background: var(--bs-hit); box-shadow: inset 0 0 0 1px #512e251a; }
-.bs-cell[data-north="true"] { border-top: 2px solid var(--muted); }
-.bs-cell[data-south="true"] { border-bottom: 2px solid var(--muted); }
-.bs-cell[data-west="true"] { border-left: 2px solid var(--muted); }
-.bs-cell[data-east="true"] { border-right: 2px solid var(--muted); }
-.bs-cell-mark { position: relative; width: 13px; height: 13px; pointer-events: none; }
+.bs-cell[data-state="ship"], .bs-cell[data-state="hit"] { box-shadow: none; }
+.bs-cell[data-state="sunk"] { background: color-mix(in srgb, var(--bs-water), var(--bs-hit) 13%); }
+.bs-fleet-art { position: absolute; inset: 3px 2px 2px 3px; pointer-events: none; z-index: 1; }
+.bs-naval-ship { position: absolute; fill: none; stroke: none; overflow: visible; pointer-events: none; filter: drop-shadow(1px 2px 1px #10253068); }
+.bs-naval-ship[data-sunk="true"] { opacity: .57; filter: drop-shadow(1px 1px 0 #10253035); }
+.bs-cell-mark { position: relative; z-index: 3; width: 13px; height: 13px; pointer-events: none; }
 .bs-cell[data-state="hit"] .bs-cell-mark:before, .bs-cell[data-state="hit"] .bs-cell-mark:after, .bs-legend-mark[data-state="hit"]:before, .bs-legend-mark[data-state="hit"]:after { content: ''; position: absolute; top: calc(50% - 1px); left: 0; width: 100%; height: 2px; border-radius: 2px; background: var(--bs-hit); transform: rotate(45deg); }
 .bs-cell[data-state="hit"] .bs-cell-mark:after, .bs-legend-mark[data-state="hit"]:after { transform: rotate(-45deg); }
-.bs-panel[data-board="own"] .bs-cell[data-state="hit"] .bs-cell-mark:before, .bs-panel[data-board="own"] .bs-cell[data-state="hit"] .bs-cell-mark:after { background: var(--paper); }
+.bs-panel[data-board="own"] .bs-cell[data-state="hit"] .bs-cell-mark:before, .bs-panel[data-board="own"] .bs-cell[data-state="hit"] .bs-cell-mark:after { background: var(--bs-hit); box-shadow: 0 0 1px var(--bs-hull-dark); }
 .bs-cell[data-state="miss"] .bs-cell-mark:after, .bs-legend-mark[data-state="miss"]:after { content: ''; position: absolute; width: 4px; height: 4px; border-radius: 50%; background: var(--bs-miss); top: calc(50% - 2px); left: calc(50% - 2px); }
-.bs-cell[data-state="sunk"] .bs-cell-mark:after { content: ''; position: absolute; inset: 3px; border: 1px solid var(--paper); border-radius: 50%; opacity: .65; }
-.bs-cell[data-preview="valid"] { background: var(--bs-ship) !important; box-shadow: inset 0 0 0 1px var(--paper); opacity: .65; }
+.bs-cell[data-state="sunk"] .bs-cell-mark:after { content: ''; position: absolute; inset: 3px; border: 1.5px solid var(--bs-hit); border-radius: 50%; box-shadow: 0 0 1px var(--bs-hull-dark); }
+.bs-cell[data-preview="valid"] { background: var(--bs-accent) !important; box-shadow: inset 0 0 0 1px var(--paper); opacity: .65; }
 .bs-cell[data-preview="invalid"] { background: var(--bs-hit) !important; opacity: .7; }
 .bs-cell[data-last="true"] { outline: 1.5px solid var(--ink); outline-offset: -3px; }
 .bs-confirm { display: block; margin: 20px auto 0; font-size: 12px; }
@@ -370,6 +385,7 @@ input { width: 100%; border: 1px solid var(--line); border-radius: 9px; padding:
   main:has(.play-page[data-game="battleship"]:not([hidden])) { width: calc(100% - 24px); }
   .play-page[data-game="battleship"] .play-paper { padding: 18px 10px; }
   .bs-layout { display: block; max-width: 390px; }
+  .bs-panel { padding: 8px 5px; border-radius: 9px; }
   .bs-game:not([data-phase="placement"]) .bs-panel[data-selected="false"] { display: none; }
   .bs-tabs { display: flex; justify-content: center; gap: 3px; margin: 0 auto 20px; padding: 3px; border: 1px solid var(--line-soft); background: var(--page); border-radius: 20px; width: fit-content; }
   .bs-tab { border-color: transparent; border-radius: 18px; padding: 6px 15px; font-size: 11px; color: var(--muted); background: transparent; }

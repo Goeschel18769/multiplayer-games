@@ -124,6 +124,11 @@ wechselt den Zug. Nur tatsächliche Treffer und Fehlschüsse werden markiert,
 keine Nachbarfelder. Die gegnerische Flotte bleibt serverseitig verborgen;
 versenkte Schiffe sind sichtbar. Die Kachel führt direkt nach `BEN-JOEL-SHIPS`.
 Am Desktop stehen beide Bretter nebeneinander, mobil kann man umschalten.
+Die Schiffe erscheinen als detaillierte Militärschiffe von oben mit Stahlrumpf,
+Deck, Brücke, Radar und Geschütztürmen. Ihre Form dreht sich mit der Platzierung,
+auch beim L-Schiff. Blaue Wasserflächen, Rahmen und Akzente prägen diese
+Spielseite; Hell, Dunkel und Büro besitzen jeweils eigene nautische Farben.
+Treffer bleiben über den Schiffen sichtbar, unversenkte fremde Rümpfe verborgen.
 
 Der kompakte Hub zeigt Spielkacheln mit generierten Bildvorschauen in warmer
 Papieroptik, ohne Seitennamen oder Begrüßungstexte. Der hervorgehobene globale
@@ -233,8 +238,9 @@ Die Vorschau für 4 Gewinnt wurde ebenfalls mit dem eingebauten Imagegen-Werkzeu
 erzeugt: [Bildquelle](frontend/src/assets/connect-four-preview.png) und
 [verwendeter Prompt](frontend/src/assets/connect-four-preview.prompt.txt).
 Auch Schiffe versenken hat eine Vorschau aus dem integrierten Imagegen-Werkzeug:
-[Bildquelle](frontend/src/assets/battleship-preview.png) und
-[verwendeter Prompt](frontend/src/assets/battleship-preview.prompt.txt).
+[aktuelle blaue Militärschiff-Vorschau](frontend/src/assets/battleship-preview-naval.png) und
+[verwendeter Prompt](frontend/src/assets/battleship-preview-naval.prompt.txt).
+Die ursprüngliche Papiervorschau bleibt als ungenutzte Bildquelle erhalten.
 Alle drei Bilder bleiben in `app.js` eingebettet.
 
 ## Öffentliche Konfiguration

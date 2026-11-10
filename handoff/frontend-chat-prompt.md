@@ -50,7 +50,12 @@ im Browser speichern. Eigene Entwürfe dürfen im RAM je Raum/Match/Spieler eine
 Reconnect überstehen; neue Matches beginnen leer. Aktionen placeFleet und fire
 sowie genaue Views sind in backend-api.md beschrieben. Erste eigene
 Flottenbestätigung darf eine ältere Revision verwenden, alle Schüsse bleiben
-strikt. Konturen halten berührende bekannte Schiffe erkennbar. Tastatur:
+strikt. Detaillierte Militärschiffe von oben mit Stahlrumpf, Deck, Brücke, Radar
+und Geschützen folgen den belegten Feldern und allen Drehungen, auch beim
+L-Schiff. Getrennte Rümpfe halten berührende bekannte Schiffe erkennbar.
+Verwende deutliches Wasserblau für Bretter, Rahmen und Akzente dieser Spielseite,
+mit eigenen Hell-/Dunkelwerten und zurückhaltendem Blaugrau im Büro-Modus.
+Treffer liegen über den Rümpfen; der Grafiklayer fängt keine Eingaben ab. Tastatur:
 Pfeile/Home/End über Felder, R zum Drehen. Dritte PNG-Vorschau inline bündeln.
 
 Verwende HTML, CSS und Vanilla JavaScript, kein TypeScript. Die Entwicklungsquellen

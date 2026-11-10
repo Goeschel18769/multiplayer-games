@@ -11,4 +11,4 @@ Alle drei Dateien im selben Ordner lassen. Sie stehen zusätzlich einzeln unter 
 Die verfügbare Modusauswahl richtet sich nach dem angeschlossenen Backend. Dieses Release veröffentlicht die lokale Spieloberfläche; das Cloudflare-Backend wird separat aktualisiert.
 
 Enthaltene Spiele: Tic Tac Toe (3×3 und 15×15), 4 Gewinnt und Schiffe versenken.
-Schiffe versenken bietet das 10×10-Brett mit drehbarem L-Schiff, manueller und zufälliger Platzierung. Treffer erlauben einen weiteren Schuss; nur tatsächliche Schüsse werden markiert.
+Schiffe versenken bietet das blaue 10×10-Brett mit detaillierten Militärschiffen, drehbarem L-Schiff, manueller und zufälliger Platzierung. Treffer erlauben einen weiteren Schuss; nur tatsächliche Schüsse werden markiert.

@@ -353,5 +353,21 @@ auch über einen Reconnect derselben Seite; kein Speicherzwang und kein Zugriff
 auf fremde Positionen. Neue Matches beginnen leer. Desktop zeigt beide Bretter,
 schmale Ansichten bieten einen Wechsel zwischen Gegner und eigener Flotte.
 Native Feldbuttons, Pfeile/Home/End und R zum Drehen ergänzen die Tippbedienung.
-Berührende bekannte Schiffe bleiben durch Konturen getrennt erkennbar.
+Berührende bekannte Schiffe bleiben durch getrennte Rumpfsilhouetten erkennbar.
 Auch die dritte Imagegen-PNG wird inline eingebettet: weiterhin drei Dateien.
+
+
+### Nautische Spielansicht
+
+`battleship-ships.js` zeichnet skalierbare SVG-Draufsichten mit Rumpf, Deck,
+Brücke, Radar, Geschützen und kleinen Deckdetails. Die Geometrie wird nur aus
+eigenen Entwürfen oder bereits vom Server offengelegten Schiffen abgeleitet;
+Treffer allein erzeugen keine gegnerische Rumpfgeometrie. Ein über dem Brett
+liegender, nicht interaktiver Zeichenlayer folgt allen vier L-Drehungen und
+geraden Ausrichtungen. Treffer und Tastaturfokus liegen darüber, die nativen
+Feldbuttons bleiben bedienbar. Unveränderte Flotten werden nicht neu gezeichnet.
+
+Die Seite erhält eigene Wasser-, Rahmen-, Text- und Scorefarben in Hell, Dunkel
+und zurückhaltendem Blaugrau für Büro. Der Hub verwendet seine bisherigen
+Flächen und eine neue blaue Imagegen-Vorschau für Schiffe versenken. Alle Grafiken
+bleiben inline; weder Backend noch Protokoll ändern sich durch diese Gestaltung.

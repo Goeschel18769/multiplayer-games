@@ -1,4 +1,5 @@
-import { FLEET, shapeOffsets, placementCells, canPlace, completeFleet, randomFleet } from './battleship-placement.js';
+import { FLEET, placementCells, canPlace, completeFleet, randomFleet } from './battleship-placement.js';
+import { createShipIllustration, renderFleetIllustrations } from './battleship-ships.js';
 
 const draftCache = new Map(); // Nur eigene Entwürfe, pro Rauminstanz/Partie/Spieler, ausschließlich im Arbeitsspeicher.
 const states = ['unknown', 'ship', 'miss', 'hit', 'sunk'];
@@ -109,8 +110,9 @@ export function mountBattleship(root, act) {
       grid.append(rowElement);
     }
     grid.addEventListener('pointerleave', () => { if (kind === 'own' && hover !== null) { hover = null; paint(); } });
+    const fleetArt = element('div', 'bs-fleet-art'); fleetArt.setAttribute('aria-hidden', 'true'); grid.append(fleetArt);
     tabStops(); chart.append(columns, rows, grid); panel.append(heading, chart); layout.append(panel);
-    boards[kind] = { panel, cells, count };
+    boards[kind] = { panel, cells, count, fleetArt };
   }
   const confirm = button('primary bs-confirm', 'Flotte bestätigen', () => {
     if (editable && completeFleet(draft)) { remember(); act({ kind: 'placeFleet', ships: draft.map(ship => ({ ...ship })) }); }
@@ -176,10 +178,8 @@ export function mountBattleship(root, act) {
     pieceButtons.forEach((item, index) => {
       item.disabled = !editable; item.setAttribute('aria-pressed', String(selected === index)); item.dataset.placed = String(draft[index] !== null);
       item.setAttribute('aria-label', `${FLEET[index].label}, ${FLEET[index].size} Felder${draft[index] ? ', gesetzt' : ''}`);
-      const mini = item.children[0]; mini.replaceChildren();
-      for (const [row, column] of shapeOffsets(index, selected === index ? rotation : draft[index]?.rotation || 0)) {
-        const square = element('i', ''); square.style.gridRow = String(row + 1); square.style.gridColumn = String(column + 1); mini.append(square);
-      }
+      const mini = item.children[0], turn = selected === index ? rotation : draft[index]?.rotation || 0;
+      if (mini.dataset.rotation !== String(turn)) { mini.dataset.rotation = String(turn); mini.replaceChildren(createShipIllustration(index, turn)); }
     });
     const preview = editable && selected !== null && hover !== null ? placementCells(selected, { cell: hover, rotation }) : null;
     const previewValid = preview && canPlace(draft, selected, { cell: hover, rotation });
@@ -188,8 +188,10 @@ export function mountBattleship(root, act) {
     else view.ownShips.forEach(ship => ship.cells.forEach(cell => ownCells.set(cell, ship.index)));
     const revealedTargets = new Map();
     view.opponentShips.forEach(ship => ship.cells.forEach(cell => revealedTargets.set(cell, ship.index)));
+    const ownShips = view.yourReady ? view.ownShips : draft.flatMap((ship, index) => ship ? [{ index, cells: placementCells(index, ship), sunk: false }] : []);
     for (const kind of ['own','target']) {
       const board = boards[kind], knownShips = kind === 'own' ? ownCells : revealedTargets;
+      renderFleetIllustrations(board.fleetArt, kind === 'own' ? ownShips : view.opponentShips);
       board.panel.hidden = kind === 'target' && view.phase === 'placement';
       board.panel.dataset.selected = String(activeBoard === kind);
       board.count.textContent = kind === 'own' && !view.yourReady ? `${draft.filter(Boolean).length} / 5 gesetzt` : `${view.remaining[kind === 'own' ? 'you' : 'opponent']} / 5 übrig`;

@@ -9,7 +9,11 @@ Büro-Modus. Der kompakte Hub zeigt ohne Seitennamen oder Einleitung Spielkachel
 mit generierten Bildvorschauen. Tic Tac Toe öffnet die Spielmoduswahl;
 4 Gewinnt führt direkt in seinen Standardraum und verwendet warme Brauntöne.
 Schiffe versenken ergänzt eine dritte Bildkachel und den direkten Standardraum
-`BEN-JOEL-SHIPS`, ebenfalls ohne Moduswahl.
+`BEN-JOEL-SHIPS`, ebenfalls ohne Moduswahl. Die Spielseite verwendet deutliche
+Wasserblau-Töne, detaillierte Militärschiffe in Draufsicht und eine entsprechende
+Hub-Vorschau. Hell und Dunkel besitzen eigene blaue Flächen; Büro bleibt
+zurückhaltend blaugrau. Rümpfe folgen exakt den bekannten belegten Feldern und
+Drehungen, Treffer bleiben darüber sichtbar.
 Die Spielerwahl erfolgt beim ersten Öffnen im Tab per
 Ben-/Joël-Dialog. Im hervorgehobenen Score oben mittig öffnet der eigene Name die Wahl
 erneut und die Zahlen den Editor. Eine kleine Lasche oben rechts verbirgt die

@@ -1,0 +1,10 @@
+Use case: precise-object-edit.
+Asset type: finished landscape hub illustration for a Battleship game.
+Input image 1: edit target, current Battleship hub preview.
+Primary request: update the existing preview to a distinctly blue nautical palette and replace its abstract brown pieces with much more realistic detailed top-down steel-grey military ship miniatures.
+Keep: overhead view, 10 by 10 fine nautical grid, ivory paper margins, calm tactile paper aesthetic and landscape 3:2 composition. Preserve one five-cell L-shaped ship in the upper left (XXX / X.. / X..), with its exact connected shape, plus straight ships aligned to grid cells.
+Change: sea is a rich but tasteful watercolor blue with fine pale blue grid lines. Ships have pointed bows, steel gunmetal hulls, raised bridges, small deck gun turrets, radar masts and realistic deck detail with miniature-model shading. The L-shaped ship is a single fictional bent military vessel; its connected five-cell silhouette must remain obvious. Allow the ships to look more realistic than the paper background.
+Lighting: soft directional light, subtle model shadows, legible at small tile size.
+Palette: ocean blue, slate blue, steel grey, warm ivory, minimal muted rust for hit marks.
+Composition: entire grid safely inside broad margins for tile cropping. No people, dramatic combat, flames or smoke.
+Text: no words, letters, numbers, logos or watermark. Full opaque background.

@@ -540,3 +540,29 @@ Engines `tic-tac-toe`, `connect-four`, `battleship`, jeweils Version 1 und zwei
 Spieler, Tic Tac Toe weiterhin mit beiden Modi. Keine öffentlichen Matches
 oder Score-Änderungen erzeugt. GitHub-Push veröffentlicht zusätzlich die
 Frontend-Ausgabe über den vorhandenen geprüften Release-Workflow.
+
+
+## Nautische Frontend-Überarbeitung — 10.11.2026
+
+- 129 Unit-Tests bestanden, einschließlich der 32 App-/Schiffe-Renderer-Fälle
+  und des echten Release-Build-/ZIP-Tests. Ergänzte Prüfungen bestätigen: eigene
+  Rümpfe sichtbar, keine gegnerischen Grafiken bei unbekannten Schiffen oder
+  bloßen Treffern, genau ein Rumpf nach dem Versenken des L-Schiffs.
+- Detaillierte skalierbare Militärschiffe und neue blaue Spielseitenpalette.
+  Keine Änderung an Backend, Regeln, Protokoll, Schussmarkierung oder Statistik.
+- Echte Chrome-Sichtprüfung über file:// mit temporärem Design-Harness unter
+  `/private/tmp/battleship-naval-qa/`: tatsächlicher Renderer, reale Engine-
+  Spieleransichten aus lokalen Fixtures, eigene berührende Schiffe mit Treffern,
+  versenktes gegnerisches L-Schiff und unbekannte Nachbarn. Dies ist ein
+  Darstellungs-/Bedienungstest, kein erneuter Online-Zweispielertest.
+- Helle und dunkle Desktopansicht sowie Büroansicht bei 320 CSS-Pixeln per
+  Screenshot geprüft. Mobile Brettumschaltung und manuelles Setzen eines
+  gedrehten L-Schiffs erfolgreich; Detailgrafiken fangen keine Klicks ab.
+  Keine Konsolenfehler im isolierten Design-Harness beobachtet.
+- Anschließend normale öffentliche Release-Dateien in denselben temporären
+  Ordner kopiert und neu geöffnet: Spielerwahl, erfolgreiche Spieleliste und
+  neue Hub-Vorschau in Hell und Büro geprüft. Nur Metadaten/Statistik gelesen;
+  keine öffentlichen Partien oder Score-Änderungen erzeugt. Test-Tab geschlossen.
+- `npm run package:release` erfolgreich. Weiterhin genau index.html, app.js und
+  style.css, drei eingebettete PNG-Vorschauen, keine lokale Adresse und keine
+  Backend-/Fixture-Quellen im öffentlichen Build. Handoff-ZIP synchronisiert.

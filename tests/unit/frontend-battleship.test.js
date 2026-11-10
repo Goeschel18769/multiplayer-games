@@ -13,7 +13,7 @@ function snapshot(state = engine.createInitialState([{ playerId: 'a' },{ playerI
 const battle = () => engine.handleAction(engine.handleAction(engine.createInitialState([{ playerId: 'a' },{ playerId: 'b' }], {}, { startingPlayerId: 'a' }), 'a', { kind: 'placeFleet', ships: fleetA }), 'b', { kind: 'placeFleet', ships: fleetB });
 function harness() {
   let focused;
-  const document = { createElement: () => new Element() };
+  const document = { createElement: () => new Element(), createElementNS: () => new Element() };
   function withDocument(fn) {
     const previous = globalThis.document; globalThis.document = document;
     try { return fn(); } finally { if (previous === undefined) delete globalThis.document; else globalThis.document = previous; }
@@ -22,7 +22,7 @@ function harness() {
     constructor() { this.children = []; this.dataset = {}; this.attributes = {}; this.listeners = {}; this.style = {}; this.disabled = false; }
     append(...items) { this.children.push(...items); }
     replaceChildren(...items) { this.children = items; }
-    setAttribute(key, value) { this.attributes[key] = value; }
+    setAttribute(key, value) { this.attributes[key] = value; if (key === 'class') this.className = value; }
     addEventListener(type, handler) { this.listeners[type] = handler; }
     emit(type, extra = {}) { const event = { key: '', preventDefault() { this.prevented = true; }, ...extra }; withDocument(() => this.listeners[type]?.(event)); return event; }
     click() { if (!this.disabled) this.emit('click'); }
@@ -50,6 +50,8 @@ test('Schiffe-Oberfläche: manuelle Flotte, L-Form und berührende Schiffe vor s
   assert.equal(h.cells('own')[0].dataset.east, 'false'); // innerhalb des L-Schiffs
   assert.equal(h.cells('own')[2].dataset.east, 'true'); // berührende Schiffe bleiben getrennt erkennbar
   assert.equal(h.cells('own')[3].dataset.west, 'true');
+  assert.equal(h.byClass('bs-fleet-art')[0].children.length, 5);
+  assert.equal(h.byClass('bs-fleet-art')[1].children.length, 0); // keine fremde Geometrie
   assert.equal(h.byClass('bs-confirm')[0].disabled, false); h.byClass('bs-confirm')[0].click();
   assert.deepEqual(h.actions, [{ kind: 'placeFleet', ships: fleetA }]);
   assert.equal(s.view.yourReady, false); // kein optimistisches Bestätigen
@@ -89,10 +91,12 @@ test('Schiffe-Oberfläche: Schüsse senden nur im eigenen Zug; keine optimistisc
   const h = harness(), state = battle(), s = snapshot(state); h.render(s);
   assert.equal(h.byClass('bs-tabs')[0].hidden, false);
   h.cells('target')[57].click(); assert.deepEqual(h.actions, [{ kind: 'fire', cell: 57 }]);
+  assert.equal(h.byClass('bs-fleet-art')[1].children.length, 0);
   assert.equal(h.cells('target')[57].dataset.state, 'unknown');
   h.render(s, { canMutate: false }); h.cells('target')[58].click(); assert.equal(h.actions.length, 1);
   const hit = engine.handleAction(state, 'a', { kind: 'fire', cell: 57 });
   h.render({ ...s, view: engine.getPlayerView(hit, 'a') }); assert.equal(h.cells('target')[57].dataset.state, 'hit');
+  assert.equal(h.byClass('bs-fleet-art')[1].children.length, 0); // Treffer verrät nicht die restliche Schiffsform
   assert.match(h.byClass('bs-status')[0].textContent, /Treffer auf H6.*Du bist am Zug/);
   h.cells('target')[57].click(); assert.equal(h.actions.length, 1);
   const miss = engine.handleAction(hit, 'a', { kind: 'fire', cell: 99 });
@@ -105,6 +109,7 @@ test('Schiffe-Oberfläche: Versenken markiert keine Nachbarn; nur Raumstatus erl
   let state = battle(); for (const cell of cellsB[0]) state = engine.handleAction(state, 'a', { kind: 'fire', cell });
   const h = harness(), s = snapshot(state); h.render(s);
   assert.equal(h.cells('target').filter(cell => cell.dataset.state === 'sunk').length, 5);
+  assert.equal(h.byClass('bs-fleet-art')[1].children.length, 1);
   assert.equal(h.cells('target')[56].dataset.state, 'unknown');
   s.room.status = { type: 'aborted' }; h.render(s); h.cells('target')[99].click(); assert.equal(h.actions.length, 0);
   assert.equal(h.byClass('bs-status')[0].textContent, 'Runde beendet.');
