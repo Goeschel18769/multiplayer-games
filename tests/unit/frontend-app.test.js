@@ -5,7 +5,8 @@ import { runInNewContext } from 'node:vm';
 import { webcrypto } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 
-const bundle = await build({ entryPoints: ['frontend/src/app.js'], bundle: true, write: false, platform: 'browser', format: 'iife', loader: { '.png': 'dataurl' } });
+const bundle = await build({ entryPoints: ['frontend/src/app.js'], bundle: true, write: false, platform: 'browser', format: 'iife', loader: { '.png': 'file' }, assetNames: 'img/[name]', outfile: 'test-output/app.js' });
+const appCode = bundle.outputFiles.find(file => file.path.endsWith('/app.js')).text;
 const flush = () => new Promise(setImmediate);
 const html = await readFile('frontend/index.html', 'utf8');
 async function harness(responder, { session = new Map(), blockedStorage = false } = {}) {
@@ -81,7 +82,7 @@ async function harness(responder, { session = new Map(), blockedStorage = false 
     addEventListener: (type, handler) => root.addEventListener(type, handler),
   };
   const window = new Element('window');
-  runInNewContext(bundle.outputFiles[0].text, {
+  runInNewContext(appCode, {
     document, window,
     localStorage: { getItem() { throw new Error('file:// storage denied'); }, setItem() { throw new Error('file:// storage denied'); } },
     sessionStorage: {

@@ -1,6 +1,6 @@
 # Technische Frontend-Übergabe — multiplayer-games
 
-Stand: 10.11.2026 (Spielhub, Score-Korrektur, Tic-Tac-Toe-Modi, 4 Gewinnt und Schiffe versenken).
+Stand: 11.11.2026 (Spielhub, Score-Korrektur, Tic-Tac-Toe-Modi, 4 Gewinnt und Schiffe versenken).
 Dieses Paket beschreibt den tatsächlich vorhandenen Quellcode, unabhängig
 vom bisherigen Projekt und Chat. Es ermöglicht, in einem
 separaten Projekt ein kompatibles Frontend zu gestalten oder neu zu entwickeln.
@@ -81,8 +81,12 @@ Spieleliste, öffentliche `room.config` und zusätzliche Modus-/Brettangaben sam
 Metadaten bietet das Frontend auf einem älteren Backend nur Classic an; 15×15
 benötigt die neue Backend-Version. Ein Deployment ist nicht Teil dieser Änderung.
 Das große Brett bleibt scrollbar und mit Pfeiltasten/Home/End bedienbar. Die
-PNG-Vorschau ist als Data-URL im Bundle enthalten, daher besteht `release/`
-weiterhin aus genau `index.html`, `app.js` und `style.css`.
+drei PNG-Vorschauen liegen als normale Bilddateien unter `release/img/`.
+Die Spielausgabe besteht aus `index.html`, `app.js`, `style.css` und diesem
+Bildordner. Alles gemeinsam weitergeben; `app.js` enthält nur relative Pfade
+und ist dadurch rund 93 KB groß. Das Gesamt-ZIP des GitHub-Releases enthält
+alle sechs Dateien. Bei Einzeldownloads zusätzlich `img.zip` neben `index.html`
+entpacken; es erzeugt den benötigten `img/`-Ordner.
 
 ## Die sechs Dateien
 

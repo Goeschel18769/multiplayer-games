@@ -8,8 +8,9 @@ Das Frontend bleibt HTML, CSS und Vanilla JavaScript.
 
 Unter [GitHub Releases](https://github.com/Goeschel18769/multiplayer-games/releases/latest)
 das Asset **`multiplayer-games.zip`** herunterladen und vollständig entpacken.
-Es enthält ausschließlich `index.html`, `app.js` und `style.css`. Alle drei Dateien
-im selben Ordner lassen und `index.html` per Doppelklick öffnen. Spieler benötigen
+Es enthält `index.html`, `app.js`, `style.css` und den Bildordner `img/`.
+Den vollständigen entpackten Ordner zusammenlassen und `index.html` per
+Doppelklick öffnen. Spieler benötigen
 weder Node.js noch einen lokalen Webserver; eine Internetverbindung zum Backend
 ist erforderlich. Der Download enthält die fertig gebaute Spieloberfläche.
 
@@ -66,7 +67,9 @@ kein Cloudflare-Deployment aus und aktualisiert das öffentliche Backend nicht.
 Jeder Push auf `main` startet den [Release-Workflow](.github/workflows/release.yml).
 Nach `npm ci`, den vollständigen Tests und dem Backend-Dry-Run baut er die
 öffentliche Spielausgabe und veröffentlicht ein GitHub-Release mit
-`multiplayer-games.zip` sowie den drei Einzeldateien. Bei fehlgeschlagenen
+`multiplayer-games.zip`, den drei Hauptdateien und `img.zip`. Das Gesamt-ZIP
+enthält alles zum Spielen; bei Einzeldownloads zusätzlich `img.zip` neben
+`index.html` entpacken, sodass dort der Ordner `img/` liegt. Bei fehlgeschlagenen
 Prüfungen bleibt die vorherige Ausgabe unter
 [Neueste Spielausgabe](https://github.com/Goeschel18769/multiplayer-games/releases/latest)
 erhalten. Releases können außerdem auf `main` über Actions manuell gestartet werden.
@@ -74,7 +77,7 @@ erhalten. Releases können außerdem auf `main` über Actions manuell gestartet 
 Die erste Version ist `v1.0.0` (aus `package.json`); weitere Versionen zählen
 automatisch die Patchnummer des höchsten vorhandenen stabilen Versionstags hoch.
 Ein erneuter Lauf für denselben Commit verwendet dessen bestehenden Tag.
-Der Workflow veröffentlicht erst nach dem vollständigen Upload aller vier Assets.
+Der Workflow veröffentlicht erst nach dem vollständigen Upload aller fünf Assets.
 Es werden keine Cloudflare-Schlüssel benötigt und kein Backend deployt.
 
 ## Lokales Backend
@@ -201,6 +204,9 @@ Der Build verwendet das vorhandene esbuild und erzeugt genau:
 release/index.html
 release/app.js
 release/style.css
+release/img/tic-tac-toe-preview.png
+release/img/connect-four-preview.png
+release/img/battleship-preview-naval.png
 ```
 
 Spieler öffnen `release/index.html` per Doppelklick. Sie benötigen keine
@@ -215,8 +221,11 @@ mit `defer`, ohne Laufzeit-Imports, nachgeladene Chunks, CDN, externe Schriftart
 lokale fetch-Aufrufe oder Service Worker. Der generierte Ordner ist in Git
 ignoriert und wird vor jedem Build gezielt bereinigt. Backend, Tests und
 .env-Dateien werden nicht mitgeliefert.
-Die PNG-Vorschau wird per esbuild als Data-URL in `app.js` eingebettet; es bleibt
-bei genau drei Release-Dateien ohne separate Bilddatei zur Laufzeit.
+Die drei PNG-Vorschauen werden als normale Dateien unter `release/img/`
+ausgegeben. `app.js` enthält nur relative Bildpfade statt Base64-Daten und
+schrumpft dadurch von rund 11,7 MB auf 93 KB. Die Bilder behalten ihre Qualität
+und laden über normale `img`-Elemente, auch über `file://`. Den Bildordner beim
+Verschieben und Weitergeben immer mitnehmen.
 
 Für ein Download-Archiv zusätzlich Python 3 installieren und ausführen:
 
@@ -225,9 +234,11 @@ npm run package:release
 ```
 
 Der Befehl baut immer erneut mit der öffentlichen Backend-Konfiguration, prüft
-die drei Ausgabedateien und erzeugt `dist/multiplayer-games.zip`. Im ZIP liegen
-`index.html`, `app.js` und `style.css` direkt an der Wurzel, ohne Quellcode,
-Backend oder Unterordner. Auch nach einem lokalen Test-Build wird damit keine
+die drei Hauptdateien samt Bildordner und erzeugt `dist/multiplayer-games.zip`.
+Im ZIP liegen `index.html`, `app.js` und `style.css` direkt an der Wurzel und
+die drei benötigten PNGs unter `img/`, ohne Quellcode oder Backend. Zusätzlich
+entsteht `dist/img.zip` mit ausschließlich diesen drei `img/`-Dateien für
+Einzeldownloads auf GitHub. Auch nach einem lokalen Test-Build wird damit keine
 `127.0.0.1`-Konfiguration ausgeliefert. `dist/` ist wie `release/` in Git ignoriert.
 
 Die [Bildquelle](frontend/src/assets/tic-tac-toe-preview.png) wurde mit dem
@@ -241,7 +252,8 @@ Auch Schiffe versenken hat eine Vorschau aus dem integrierten Imagegen-Werkzeug:
 [aktuelle blaue Militärschiff-Vorschau](frontend/src/assets/battleship-preview-naval.png) und
 [verwendeter Prompt](frontend/src/assets/battleship-preview-naval.prompt.txt).
 Die ursprüngliche Papiervorschau bleibt als ungenutzte Bildquelle erhalten.
-Alle drei Bilder bleiben in `app.js` eingebettet.
+Alle drei verwendeten Bilder liegen im Release unter `img/`. Die ungenutzte
+ursprüngliche Schiffe-Vorschau und Prompt-Dateien werden nicht mitgeliefert.
 
 ## Öffentliche Konfiguration
 

@@ -5,7 +5,8 @@
 Ein npm-Projekt im Hauptordner verwaltet Backend, Frontend und Tests mit einer
 `package.json` und einer Lockdatei. Der Code verwendet JavaScript-ES-Module, kein
 TypeScript. Das Frontend besteht aus HTML, CSS und modularen Vanilla-JavaScript-
-Quellen; esbuild erzeugt einen portablen `release/`-Ordner mit drei Dateien.
+Quellen; esbuild erzeugt einen portablen `release/`-Ordner mit drei Hauptdateien
+und den drei verwendeten PNGs im Unterordner `img/`.
 Tic Tac Toe, 4 Gewinnt und Schiffe versenken sind als produktive Engines implementiert und über die Spieloberfläche
 bedienbar. Die technische Diagnoseoberfläche bleibt separat erhalten.
 
@@ -43,7 +44,7 @@ Die getrennte 2–4-Spieler-Fixture bleibt ausschließlich in Testkonfiguratione
 | `tests/fixtures/` | Deterministische Test-Engine und separater Test-Worker mit kontrollierter Uhr und Fehler-Injektion. |
 | `docs/` | Architektur, Protokoll, Engine-Vertrag und Testanleitung. |
 | `handoff/` | Eigenständige deutsche Frontend-Übergabe mit API-Vertrag, Engine-Vertrag, öffentlicher Konfigurationsvorlage und Prüfgrenzen; zusätzlich als handoff.zip. |
-| `release/` | Generierte, nicht versionierte Ausgabe: index.html, klassisches app.js und style.css. |
+| `release/` | Generierte, nicht versionierte Ausgabe: index.html, klassisches app.js, style.css und img/ mit den verwendeten PNGs. |
 
 Leere Platzhalterverzeichnisse bleiben durch `.gitkeep` in Git erfassbar.
 
@@ -232,12 +233,12 @@ Frist und die Statistik-Outbox werden im Backend nicht verändert.
 
 `scripts/build-frontend.mjs` bereinigt ausschließlich den fest bestimmten
 Projektordner `release/`. Es bündelt mit `platform: browser`, `format: iife` und
-`splitting: false`, kopiert die HTML-Vorlage und CSS und liefert genau drei
-Dateien. Eine generierte PNG-Vorschau wird als Data-URL in das JavaScript-Bundle
-eingebettet und erfordert keine zusätzliche Release-Datei. Relative Assets und
+`splitting: false`, kopiert die HTML-Vorlage und CSS und liefert drei
+Hauptdateien plus `img/`. PNG-Imports verwenden den esbuild-File-Loader mit
+`assetNames: "img/[name]"`; das Bundle enthält relative Bildpfade. Relative Assets und
 ein klassisches Skript mit `defer` erlauben direktes
 Öffnen über `file://` und das Verschieben des ganzen Ordners. Es gibt keine
-Laufzeit-Imports, lokalen fetch-Aufrufe, externen Assets oder Konfigurationsabrufe.
+Laufzeit-Imports, lokalen fetch-Aufrufe, extern gehosteten Assets oder Konfigurationsabrufe.
 HTTP-Anfragen gehen ausschließlich an das konfigurierte Backend; WS/WSS wird
 daraus abgeleitet. CORS ist weiterhin keine Authentifizierung.
 
@@ -371,3 +372,15 @@ Die Seite erhält eigene Wasser-, Rahmen-, Text- und Scorefarben in Hell, Dunkel
 und zurückhaltendem Blaugrau für Büro. Der Hub verwendet seine bisherigen
 Flächen und eine neue blaue Imagegen-Vorschau für Schiffe versenken. Alle Grafiken
 bleiben inline; weder Backend noch Protokoll ändern sich durch diese Gestaltung.
+
+
+## Bilddateien im Release — 11.11.2026
+
+Die frühere Einbettung als Base64 in JavaScript wird durch den Bildordner `img/`
+ersetzt. Der Build gibt nur tatsächlich importierte PNGs aus; Rümpfe bleiben
+als skalierbare SVGs im Renderer. Der vollständige Release besteht aus drei
+Hauptdateien und drei PNGs, ohne Laufzeitmodule oder Konfigurations-Fetch.
+Das Packaging prüft Dateien und Bildordner gegen die Build-Metadaten und
+verpackt ausschließlich diese sechs Dateien reproduzierbar. Zusätzlich liefert
+`img.zip` nur den Bildordner für den optionalen Download der Hauptdateien
+als Einzeldateien. Der GitHub-Workflow veröffentlicht alle fünf Assets gemeinsam.

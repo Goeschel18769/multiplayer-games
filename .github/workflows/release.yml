@@ -63,8 +63,8 @@ jobs:
               --title "Spielausgabe $tag" --notes-file "$notes"
           fi
 
-          # Erst veröffentlichen, wenn ZIP und alle drei Einzeldateien hochgeladen sind.
+          # Erst veröffentlichen, wenn Gesamt-ZIP, Bilder-ZIP und die Hauptdateien hochgeladen sind.
           gh release upload "$tag" --clobber \
-            dist/multiplayer-games.zip release/index.html release/app.js release/style.css
+            dist/multiplayer-games.zip dist/img.zip release/index.html release/app.js release/style.css
           gh release edit "$tag" --draft=false --latest
           gh release view "$tag" --json url --jq '.url'

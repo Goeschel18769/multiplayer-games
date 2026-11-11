@@ -29,7 +29,7 @@ Sie prüft unter anderem:
   HTTP-/WebSocket-Ablauf in Workerd ohne Fixture-Engine.
 - Clientlogik mit DOM-/Transport-Doubles, Pending/Reconnect und kein zweiter
   Create nach gescheitertem Join; diese Tests sind keine Browsertests.
-- Build mit drei Dateien, relativen Assets, klassischem Bundle ohne
+- Build mit drei Hauptdateien und lokalem img/-Ordner, relativen Assets, klassischem Bundle ohne
   Laufzeit-Imports oder Backend-Quellen, unabhängig herauskopierbarer Ausgabe
   und getrennter lokaler Testkonfiguration.
 
@@ -352,3 +352,23 @@ Frontend-Ausgabe über den vorhandenen geprüften Release-Workflow.
 - `npm run package:release` erfolgreich. Weiterhin genau index.html, app.js und
   style.css, drei eingebettete PNG-Vorschauen, keine lokale Adresse und keine
   Backend-/Fixture-Quellen im öffentlichen Build. Handoff-ZIP synchronisiert.
+
+
+## Bildordner statt Base64 — 11.11.2026
+
+- 129 Unit-Tests bestanden. Der überarbeitete Build-/ZIP-Test prüft sechs
+  Release-Dateien: drei Hauptdateien und drei unveränderte PNGs unter img/.
+  Keine data:image-Daten im JavaScript, keine Laufzeit-JS-Imports oder Backend-
+  Eingaben. Relative Bildpfade und Dateibytes stimmen auch in einer Kopie
+  außerhalb des Projekts; veraltete Haupt- und Bilddateien werden bereinigt.
+- Das Gesamt-ZIP enthält alle sechs geprüften Dateien. Das zusätzliche img.zip
+  enthält ausschließlich die drei img/-Dateien. Beide Archive wurden anhand
+  ihrer Pfade und SHA-256-Inhalte gegen den öffentlichen Build geprüft.
+- app.js schrumpft von 11.676.635 auf 92.742 Bytes; Bilder unverändert.
+- Tatsächliche Chrome-Prüfung auf macOS: Gesamt-ZIP nach
+  `/private/tmp/multiplayer-images-lx73r7pc/` entpackt und index.html direkt über
+  file:// geöffnet. Spielerwahl, aktivierte Spielkacheln und alle drei geladenen
+  Vorschaubilder per Screenshot bestätigt. Nur öffentliche Metadaten/Statistik
+  gelesen; keine Raumanlage oder Partie. Test-Tab anschließend geschlossen.
+- Backend und Spielregeln unverändert. Historische Berichte über drei Dateien
+  und eingebettete Bilder beschreiben weiterhin ihren damaligen Build.

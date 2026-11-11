@@ -56,7 +56,7 @@ L-Schiff. Getrennte Rümpfe halten berührende bekannte Schiffe erkennbar.
 Verwende deutliches Wasserblau für Bretter, Rahmen und Akzente dieser Spielseite,
 mit eigenen Hell-/Dunkelwerten und zurückhaltendem Blaugrau im Büro-Modus.
 Treffer liegen über den Rümpfen; der Grafiklayer fängt keine Eingaben ab. Tastatur:
-Pfeile/Home/End über Felder, R zum Drehen. Dritte PNG-Vorschau inline bündeln.
+Pfeile/Home/End über Felder, R zum Drehen. Dritte PNG-Vorschau im lokalen Bildordner mitliefern.
 
 Verwende HTML, CSS und Vanilla JavaScript, kein TypeScript. Die Entwicklungsquellen
 sollen ES-Module verwenden. Erzeuge einen eigenständigen Release-Ordner mit
@@ -66,8 +66,12 @@ Chunks oder lokalen fetch-Aufrufe, auch nicht für JSON-Konfiguration. Spieler
 müssen index.html per Doppelklick über file:// starten können, ohne Installation
 oder lokalen Server. Ein Buildwerkzeug für die Entwicklung ist davon getrennt.
 Die App benötigt Internet und spricht über HTTPS/WSS mit dem bestehenden Backend.
-Die PNG-Vorschau wird über esbuild als Data-URL importiert; release/ enthält
-weiterhin genau index.html, app.js und style.css ohne separate Laufzeit-Bilddatei.
+Die drei PNG-Vorschauen über esbuild als Dateien mit assetNames img/[name]
+ausgeben. release/ enthält index.html, app.js, style.css und img/ mit den drei
+verwendeten Bildern. JavaScript enthält nur relative Bildpfade, keine Base64-
+Bilddaten. Den gesamten Ordner ins Download-ZIP aufnehmen. Zusätzlich img.zip
+mit dem img/-Ordner für die Einzeldateien auf GitHub bereitstellen. Alle Assets
+müssen auch nach Kopieren und direkt über file:// ohne lokalen Server laden.
 
 Halte öffentliche Konfiguration von Zugangsdaten getrennt. Nutze Protokoll v1
 und welcome.settings, insbesondere für den Heartbeat; erfinde keine eigenen

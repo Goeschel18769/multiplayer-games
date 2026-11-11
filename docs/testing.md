@@ -182,7 +182,7 @@ und das genaue Prüfprotokoll stehen in der verlinkten Anleitung.
   DOM und Netzwerk: nach erfolgreichem Create und fehlgeschlagenem Join bleibt der
   Code erhalten; Reconnect erzeugt nur einen neuen Socket, keinen zweiten Create.
   Das ist ein Client-Logiktest, keine Browserprüfung.
-- `frontend-build.test.js`: genau drei öffentliche Dateien, Bereinigung alter
+- `frontend-build.test.js`: drei öffentliche Hauptdateien plus img/-Ordner, Bereinigung alter
   Build-Artefakte, keine externen JS-Imports/Chunks oder Backend-Eingaben,
   relative vollständige Assets aus einer Kopie außerhalb des Projekts,
   getrennte lokale Konfiguration und normale Ausgabe mit öffentlicher Adresse.
@@ -566,3 +566,23 @@ Frontend-Ausgabe über den vorhandenen geprüften Release-Workflow.
 - `npm run package:release` erfolgreich. Weiterhin genau index.html, app.js und
   style.css, drei eingebettete PNG-Vorschauen, keine lokale Adresse und keine
   Backend-/Fixture-Quellen im öffentlichen Build. Handoff-ZIP synchronisiert.
+
+
+## Bildordner statt Base64 — 11.11.2026
+
+- 129 Unit-Tests bestanden. Der überarbeitete Build-/ZIP-Test prüft sechs
+  Release-Dateien: drei Hauptdateien und drei unveränderte PNGs unter img/.
+  Keine data:image-Daten im JavaScript, keine Laufzeit-JS-Imports oder Backend-
+  Eingaben. Relative Bildpfade und Dateibytes stimmen auch in einer Kopie
+  außerhalb des Projekts; veraltete Haupt- und Bilddateien werden bereinigt.
+- Das Gesamt-ZIP enthält alle sechs geprüften Dateien. Das zusätzliche img.zip
+  enthält ausschließlich die drei img/-Dateien. Beide Archive wurden anhand
+  ihrer Pfade und SHA-256-Inhalte gegen den öffentlichen Build geprüft.
+- app.js schrumpft von 11.676.635 auf 92.742 Bytes; Bilder unverändert.
+- Tatsächliche Chrome-Prüfung auf macOS: Gesamt-ZIP nach
+  `/private/tmp/multiplayer-images-lx73r7pc/` entpackt und index.html direkt über
+  file:// geöffnet. Spielerwahl, aktivierte Spielkacheln und alle drei geladenen
+  Vorschaubilder per Screenshot bestätigt. Nur öffentliche Metadaten/Statistik
+  gelesen; keine Raumanlage oder Partie. Test-Tab anschließend geschlossen.
+- Backend und Spielregeln unverändert. Historische Berichte über drei Dateien
+  und eingebettete Bilder beschreiben weiterhin ihren damaligen Build.

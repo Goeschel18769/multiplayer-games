@@ -5,8 +5,11 @@ Das ZIP enthält ausschließlich:
 - `index.html`
 - `app.js`
 - `style.css`
+- `img/` mit den drei Vorschaubildern
 
-Alle drei Dateien im selben Ordner lassen. Sie stehen zusätzlich einzeln unter Assets bereit. Node.js, eine Installation oder ein lokaler Webserver sind zum Spielen nicht erforderlich; eine Internetverbindung zum gemeinsamen Backend wird benötigt.
+Die drei Hauptdateien und den Ordner `img/` zusammenlassen. Die Hauptdateien stehen zusätzlich einzeln unter Assets bereit; dafür auch `img.zip` herunterladen und daneben entpacken. Node.js, eine Installation oder ein lokaler Webserver sind zum Spielen nicht erforderlich; eine Internetverbindung zum gemeinsamen Backend wird benötigt.
+
+Die Bilder liegen als normale PNG-Dateien im Bildordner; `app.js` enthält keine eingebetteten Base64-Bilder mehr.
 
 Die verfügbare Modusauswahl richtet sich nach dem angeschlossenen Backend. Dieses Release veröffentlicht die lokale Spieloberfläche; das Cloudflare-Backend wird separat aktualisiert.
 
